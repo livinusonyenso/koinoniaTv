@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const mmkv = require\\(''''react-native-mmkv''''\\); console.log\\(Object.keys\\(mmkv\\)\\);\")",
+      "Bash(npm install:*)",
+      "Bash(where node:*)",
+      "Bash(nvm use:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\DELL\\.claude\\projects\\c--Users-DELL-Desktop-koinonia-tv-source-koinonia-tv"
+    ]
+  }
+}
