@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HomeScreen from '../screens/Home/HomeScreen';
 import SermonsScreen from '../screens/Sermons/SermonsScreen';
@@ -18,7 +19,11 @@ const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const TAB_ICONS: Record<string, string> = {
-  Home: '🏠', Sermons: '🎬', Live: '🔴', Clips: '⚡', Events: '📅',
+  Home: '🏠', Sermons: '🎬', Live: '🔴', Clips: '📖', Events: '🙏',
+};
+
+const TAB_LABELS: Record<string, string> = {
+  Home: 'Home', Sermons: 'Sermons', Live: 'Live', Clips: 'Word', Events: 'Prayer',
 };
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
@@ -27,15 +32,15 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
       <Text style={[styles.tabEmoji, focused && styles.tabEmojiActive]}>
         {TAB_ICONS[name]}
       </Text>
+      {focused && <View style={styles.tabActiveDot} />}
     </View>
   );
 }
 
-// Stack wrapping Home with VideoPlayer
 function HomeStack() {
   return (
     <Stack.Navigator screenOptions={screenOpts}>
-      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ title: 'Koinonia TV', headerRight: SearchBtn }} />
+      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );
@@ -61,7 +66,7 @@ function EventsStack() {
 function SearchBtn({ navigation }: any) {
   return (
     <TouchableOpacity onPress={() => navigation?.navigate?.('SearchModal')} style={{ marginRight: Spacing.md }}>
-      <Text style={{ color: Colors.accent, fontSize: 20 }}>🔍</Text>
+      <Text style={{ color: Colors.gold, fontSize: 20 }}>🔍</Text>
     </TouchableOpacity>
   );
 }
@@ -97,14 +102,20 @@ export default function AppNavigator() {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 },
+        ],
         tabBarShowLabel: true,
+        tabBarLabel: TAB_LABELS[route.name] ?? route.name,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarActiveTintColor: Colors.accent,
+        tabBarActiveTintColor: Colors.gold,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
       })}
@@ -123,11 +134,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopColor: Colors.border,
     borderTopWidth: 1,
-    paddingTop: 4,
+    paddingTop: 6,
+    height: 62,
   },
-  tabLabel: { fontSize: FontSize.xs, fontWeight: '600', marginTop: -2 },
-  tabIcon: { alignItems: 'center', justifyContent: 'center', width: 28, height: 28 },
+  tabLabel:      { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  tabIcon:       { alignItems: 'center', justifyContent: 'center', width: 30, height: 28 },
   tabIconActive: {},
-  tabEmoji: { fontSize: 20, opacity: 0.6 },
-  tabEmojiActive: { opacity: 1 },
+  tabEmoji:      { fontSize: 20, opacity: 0.55 },
+  tabEmojiActive:{ opacity: 1 },
+  tabActiveDot: {
+    position: 'absolute',
+    bottom: -4,
+    width: 4, height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.gold,
+  },
 });
