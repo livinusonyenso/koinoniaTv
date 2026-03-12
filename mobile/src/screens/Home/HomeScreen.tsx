@@ -4,6 +4,7 @@ import {
   StyleSheet, Dimensions, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
 import { videosApi, categoriesApi, eventsApi } from '../../api';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
@@ -21,13 +22,13 @@ const SCRIPTURES = [
   { verse: '"Greater is He that is in you than he that is in the world."', ref: '1 John 4:4' },
 ];
 
-const QUICK_ACCESS = [
-  { id: 'prayer',       label: 'Prayer',         emoji: '🙏', bg: '#3B1A6E' },
-  { id: 'declarations', label: 'Declarations',   emoji: '📣', bg: '#1A3A6E' },
-  { id: 'testimonies',  label: 'Testimonies',    emoji: '✨', bg: '#1A5E2E' },
-  { id: 'miracle',      label: 'Miracle Service',emoji: '⚡', bg: '#6E2E1A' },
-  { id: 'word',         label: 'Engrafted Word', emoji: '📖', bg: '#4A148C' },
-  { id: 'request',      label: 'Prayer Request', emoji: '💌', bg: '#006064' },
+const QUICK_ACCESS: Array<{ id: string; label: string; icon: string; bg: string; screen: string }> = [
+  { id: 'prayer',       label: 'Prayer',         icon: 'hands-pray',         bg: '#3B1A6E', screen: 'Prayer'         },
+  { id: 'declarations', label: 'Declarations',   icon: 'bullhorn',            bg: '#1A3A6E', screen: 'Declarations'   },
+  { id: 'testimonies',  label: 'Testimonies',    icon: 'star-circle',         bg: '#1A5E2E', screen: 'Testimonials'   },
+  { id: 'miracle',      label: 'Miracle Service',icon: 'lightning-bolt',      bg: '#6E2E1A', screen: 'MiracleService' },
+  { id: 'word',         label: 'Engrafted Word', icon: 'book-open-variant',   bg: '#4A148C', screen: 'EngraftedWord'  },
+  { id: 'request',      label: 'Prayer Request', icon: 'email-heart-outline', bg: '#006064', screen: 'PrayerRequest'  },
 ];
 
 function formatDuration(seconds: number) {
@@ -69,10 +70,8 @@ export default function HomeScreen({ navigation }: any) {
 
   const hero = latest?.[0];
 
-  const handleQuickAccess = (id: string) => {
-    if (id === 'miracle') navigation.navigate('Events');
-    else if (id === 'prayer' || id === 'request') navigation.navigate('Live');
-    else navigation.navigate('Sermons');
+  const handleQuickAccess = (screen: string) => {
+    navigation.navigate(screen);
   };
 
   return (
@@ -100,10 +99,10 @@ export default function HomeScreen({ navigation }: any) {
               style={styles.iconBtn}
               onPress={() => navigation.navigate('SearchModal')}
             >
-              <Text style={styles.iconEmoji}>🔍</Text>
+              <MaterialCommunityIcons name="magnify" size={20} color={Colors.textSecond} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn}>
-              <Text style={styles.iconEmoji}>🔔</Text>
+              <MaterialCommunityIcons name="bell-outline" size={20} color={Colors.textSecond} />
             </TouchableOpacity>
           </View>
         </View>
@@ -131,12 +130,14 @@ export default function HomeScreen({ navigation }: any) {
               <View style={styles.heroMeta}>
                 {!!hero.durationSeconds && (
                   <View style={styles.heroMetaChip}>
-                    <Text style={styles.heroMetaText}>⏱  {formatDuration(hero.durationSeconds)}</Text>
+                    <MaterialCommunityIcons name="clock-outline" size={12} color={Colors.textSecond} />
+                    <Text style={styles.heroMetaText}> {formatDuration(hero.durationSeconds)}</Text>
                   </View>
                 )}
                 {!!hero.viewCount && (
                   <View style={styles.heroMetaChip}>
-                    <Text style={styles.heroMetaText}>👁  {Number(hero.viewCount).toLocaleString()}</Text>
+                    <MaterialCommunityIcons name="eye-outline" size={12} color={Colors.textSecond} />
+                    <Text style={styles.heroMetaText}> {Number(hero.viewCount).toLocaleString()}</Text>
                   </View>
                 )}
               </View>
@@ -144,7 +145,8 @@ export default function HomeScreen({ navigation }: any) {
                 style={styles.heroBtn}
                 onPress={() => navigation.navigate('VideoPlayer', { videoId: hero.id })}
               >
-                <Text style={styles.heroBtnText}>▶  Watch Now</Text>
+                <MaterialCommunityIcons name="play" size={16} color={Colors.dark} />
+                <Text style={styles.heroBtnText}>Watch Now</Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -158,10 +160,10 @@ export default function HomeScreen({ navigation }: any) {
               <TouchableOpacity
                 key={item.id}
                 style={[styles.qaCard, { backgroundColor: item.bg }]}
-                onPress={() => handleQuickAccess(item.id)}
+                onPress={() => handleQuickAccess(item.screen)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.qaEmoji}>{item.emoji}</Text>
+                <MaterialCommunityIcons name={item.icon as any} size={28} color={Colors.gold} />
                 <Text style={styles.qaLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}
@@ -273,7 +275,7 @@ export default function HomeScreen({ navigation }: any) {
                     })}
                   </Text>
                 </View>
-                <Text style={styles.eventArrow}>›</Text>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={Colors.textMuted} />
               </TouchableOpacity>
             ))}
           </View>
@@ -356,7 +358,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconEmoji: { fontSize: 16 },
 
   // ── Hero ──
   hero:           { height: 280, position: 'relative' },
@@ -386,12 +387,14 @@ const styles = StyleSheet.create({
   },
   heroMeta:     { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
   heroMetaChip: {
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: Radius.sm,
   },
   heroMetaText: { color: Colors.textSecond, fontSize: FontSize.xs },
   heroBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: Colors.gold,
     paddingHorizontal: Spacing.lg, paddingVertical: 10,
     borderRadius: Radius.pill, alignSelf: 'flex-start',
@@ -431,7 +434,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(244,196,48,0.15)',
     ...Shadow.card,
   },
-  qaEmoji: { fontSize: 26 },
   qaLabel: { color: Colors.text, fontSize: FontSize.xs, fontWeight: '600', textAlign: 'center' },
 
   // ── Daily Scripture ──
@@ -518,5 +520,4 @@ const styles = StyleSheet.create({
   eventType:  { color: Colors.gold, fontSize: FontSize.xs, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
   eventTitle: { color: Colors.text, fontSize: FontSize.md, fontWeight: '600', marginBottom: 4 },
   eventDate:  { color: Colors.textMuted, fontSize: FontSize.sm },
-  eventArrow: { color: Colors.textMuted, fontSize: 28, marginLeft: Spacing.sm },
 });
