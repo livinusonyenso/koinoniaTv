@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, FlatList, Image, TouchableOpacity,
   StyleSheet, Dimensions, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { videosApi, categoriesApi, eventsApi, clipsApi } from '../../api';
 import { SermonCard } from '../../components/common/SermonCard';
@@ -25,16 +26,16 @@ function SectionHeader({ title, onSeeAll }: { title: string; onSeeAll?: () => vo
 }
 
 export default function HomeScreen({ navigation }: any) {
-  const { data: featured, isLoading: loadingFeatured, refetch: refetchFeatured } =
+  const { data: featured, isLoading: loadingFeatured, isSuccess: featuredOk, refetch: refetchFeatured } =
     useQuery({ queryKey: ['featured'], queryFn: videosApi.getFeatured, staleTime: 5 * 60 * 1000 });
 
-  const { data: latest, refetch: refetchLatest } =
+  const { data: latest, isSuccess: latestOk, refetch: refetchLatest } =
     useQuery({ queryKey: ['latest'], queryFn: () => videosApi.getLatest(8), staleTime: 5 * 60 * 1000 });
 
-  const { data: trending, refetch: refetchTrending } =
+  const { data: trending, isSuccess: trendingOk, refetch: refetchTrending } =
     useQuery({ queryKey: ['trending'], queryFn: () => videosApi.getTrending(8), staleTime: 5 * 60 * 1000 });
 
-  const { data: categories } =
+  const { data: categories, isSuccess: categoriesOk } =
     useQuery({ queryKey: ['categories'], queryFn: categoriesApi.getAll, staleTime: 30 * 60 * 1000 });
 
   const { data: upcomingEvents } =
@@ -52,12 +53,25 @@ export default function HomeScreen({ navigation }: any) {
 
   const hero = featured?.[0];
 
+  // Only show empty state when queries completed successfully but returned no data
+  const isEmpty =
+    featuredOk && latestOk && trendingOk && categoriesOk &&
+    !featured?.length && !latest?.length && !trending?.length && !categories?.length;
+
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
     >
+      {isEmpty && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>📺</Text>
+          <Text style={styles.emptyTitle}>No Content Yet</Text>
+          <Text style={styles.emptyText}>Content is being synced from YouTube.{'\n'}Pull down to refresh.</Text>
+        </View>
+      )}
       {/* ── Hero Banner ── */}
       {loadingFeatured ? (
         <View style={styles.heroSkeleton}>
@@ -203,11 +217,17 @@ export default function HomeScreen({ navigation }: any) {
         </View>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: Colors.dark },
   container: { flex: 1, backgroundColor: Colors.dark },
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 120, paddingHorizontal: Spacing.lg },
+  emptyIcon: { fontSize: 48, marginBottom: Spacing.md },
+  emptyTitle: { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', marginBottom: Spacing.sm },
+  emptyText: { color: Colors.textMuted, fontSize: FontSize.sm, textAlign: 'center', lineHeight: 22 },
   heroSkeleton: { height: 280, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface },
   hero: { height: 300, position: 'relative' },
   heroBg: { width: '100%', height: '100%', position: 'absolute' },

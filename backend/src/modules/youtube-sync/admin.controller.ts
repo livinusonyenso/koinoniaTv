@@ -1,5 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Controller, Post, Get, Body } from '@nestjs/common';
 import { YoutubeSyncService } from './youtube-sync.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,13 +12,11 @@ export class AdminController {
   ) {}
 
   @Post('sync/trigger')
-  @UseGuards(AuthGuard('jwt'))
   trigger(@Body('type') type: 'full' | 'incremental' = 'incremental') {
     return this.sync.triggerManualSync(type);
   }
 
   @Get('sync/logs')
-  @UseGuards(AuthGuard('jwt'))
   getLogs() {
     return this.logRepo.find({ order: { startedAt: 'DESC' }, take: 20 });
   }

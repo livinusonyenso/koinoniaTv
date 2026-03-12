@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(nvm ls:*)",
-      "Bash(export PATH=\"/c/nvm4w/nodejs:$PATH\")"
+      "Bash(export PATH=\"/c/nvm4w/nodejs:$PATH\")",
+      "Bash(curl -s http://localhost:3000/api/v1/videos/featured)",
+      "Bash(curl -s http://localhost:3000/api/v1/videos?limit=5)",
+      "Bash(curl -s http://localhost:3000/api/v1/categories)",
+      "Bash(npx ts-node:*)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/admin/sync/trigger -H \"Content-Type: application/json\" -d '{\"\"type\"\":\"\"full\"\"}')",
+      "Bash(ipconfig)"
     ]
   }
 }
