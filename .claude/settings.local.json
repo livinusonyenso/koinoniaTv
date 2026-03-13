@@ -10,7 +10,13 @@
       "Bash(curl -s -X POST http://localhost:3000/api/v1/admin/sync/trigger -H \"Content-Type: application/json\" -d '{\"\"type\"\":\"\"full\"\"}')",
       "Bash(ipconfig)",
       "Bash(curl -s \"http://localhost:3000/api/v1/videos/latest?limit=2\")",
-      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[0] if d else {}, indent=2\\)\\)\")"
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d[0] if d else {}, indent=2\\)\\)\")",
+      "Bash(xargs grep:*)",
+      "Bash(curl -s -X POST \"http://localhost:3000/api/v1/admin/categorize\")",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/admin/categorize)",
+      "Bash(curl -s \"http://localhost:3000/api/v1/videos?category=faith&limit=3\")",
+      "Bash(curl -s \"http://localhost:3000/api/v1/videos?category=prayer&limit=3\")"
     ]
   }
 }

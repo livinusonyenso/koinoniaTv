@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, FindOptionsWhere } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Video } from './video.entity';
 
 @Injectable()
@@ -15,25 +15,41 @@ export class VideosService {
     sort?: 'latest' | 'trending' | 'az';
   }) {
     const { page = 1, limit = 20, category, year, sort = 'latest' } = query;
-    const qb = this.repo
+
+    // Build a base query that only selects video IDs to get a correct count
+    // (leftJoinAndSelect + take/skip inflates counts due to row duplication)
+    const idQb = this.repo
       .createQueryBuilder('v')
-      .leftJoinAndSelect('v.videoCategories', 'vc')
-      .leftJoinAndSelect('vc.category', 'c')
-      .where('v.isLive = false AND v.isUpcoming = false');
+      .select('v.id', 'id')
+      .where('v.isLive = :live AND v.isUpcoming = :upcoming', { live: false, upcoming: false });
 
-    if (category) qb.andWhere('c.slug = :category', { category });
-    if (year) qb.andWhere('YEAR(v.publishedAt) = :year', { year });
+    if (category) {
+      idQb
+        .innerJoin('v.videoCategories', 'vc')
+        .innerJoin('vc.category', 'c')
+        .andWhere('c.slug = :category', { category });
+    }
+    if (year) idQb.andWhere('YEAR(v.publishedAt) = :year', { year });
 
-    if (sort === 'trending') qb.orderBy('v.viewCount', 'DESC');
-    else if (sort === 'az') qb.orderBy('v.title', 'ASC');
-    else qb.orderBy('v.publishedAt', 'DESC');
+    if (sort === 'trending') idQb.orderBy('v.viewCount', 'DESC');
+    else if (sort === 'az') idQb.orderBy('v.title', 'ASC');
+    else idQb.orderBy('v.publishedAt', 'DESC');
 
-    const [items, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+    const total = await idQb.getCount();
+    const idRows = await idQb.offset((page - 1) * limit).limit(limit).getRawMany<{ id: number }>();
+    const ids = idRows.map((r) => r.id);
 
-    return { items, total, page, limit, pages: Math.ceil(total / limit) };
+    if (!ids.length) {
+      return { items: [], total, page, limit, pages: Math.ceil(total / limit) };
+    }
+
+    // Fetch full records for the current page IDs, preserving order
+    const itemMap = new Map<number, Video>();
+    const items = await this.repo.findByIds(ids);
+    items.forEach((v) => itemMap.set(v.id, v));
+    const ordered = ids.map((id) => itemMap.get(id)).filter(Boolean) as Video[];
+
+    return { items: ordered, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number): Promise<Video> {

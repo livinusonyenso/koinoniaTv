@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Video, SyncStatus } from '../videos/video.entity';
+import { VideoCategory } from '../categories/video-category.entity';
 import { SyncLog, SyncType } from './sync-log.entity';
 import { YoutubeApiService, YTVideoItem } from './youtube-api.service';
 import { CategorizationService } from './categorization.service';
@@ -12,8 +13,9 @@ export class YoutubeSyncService {
   private readonly logger = new Logger(YoutubeSyncService.name);
 
   constructor(
-    @InjectRepository(Video)   private videoRepo: Repository<Video>,
-    @InjectRepository(SyncLog) private logRepo: Repository<SyncLog>,
+    @InjectRepository(Video)          private videoRepo: Repository<Video>,
+    @InjectRepository(SyncLog)        private logRepo: Repository<SyncLog>,
+    @InjectRepository(VideoCategory)  private vcRepo: Repository<VideoCategory>,
     private ytApi: YoutubeApiService,
     private categorization: CategorizationService,
   ) {}
@@ -122,6 +124,12 @@ export class YoutubeSyncService {
 
           if (existing) {
             await this.videoRepo.update(existing.id, data);
+            // Re-tag if this video has never been categorized
+            const catCount = await this.vcRepo.count({ where: { videoId: existing.id } });
+            if (catCount === 0) {
+              const videoForTag = { ...existing, ...data } as Video;
+              await this.categorization.autoTag(videoForTag);
+            }
             updated++;
           } else {
             const saved = await this.videoRepo.save(this.videoRepo.create(data));
