@@ -98,3 +98,9 @@ export const userApi = {
   getBookmarks: (params?: any) => api.get('/users/bookmarks', { params }).then(r => r.data),
   getHistory:   (params?: any) => api.get('/users/history', { params }).then(r => r.data),
 };
+
+export const momentsApi = {
+  getDeclarations: (params?: any) => api.get('/moments/declarations', { params }).then(r => r.data),
+  getPrayers:      (params?: any) => api.get('/moments/prayers', { params }).then(r => r.data),
+  getTestimonies:  (params?: any) => api.get('/moments/testimonies', { params }).then(r => r.data),
+};

@@ -16,7 +16,13 @@
       "Bash(python -m json.tool)",
       "Bash(curl -s -X POST http://localhost:3000/api/v1/admin/categorize)",
       "Bash(curl -s \"http://localhost:3000/api/v1/videos?category=faith&limit=3\")",
-      "Bash(curl -s \"http://localhost:3000/api/v1/videos?category=prayer&limit=3\")"
+      "Bash(curl -s \"http://localhost:3000/api/v1/videos?category=prayer&limit=3\")",
+      "Bash(node -e \"const {YoutubeTranscript} = require\\(''youtube-transcript''\\); YoutubeTranscript.fetchTranscript\\(''_Lu3gRRfop4''\\).then\\(r => console.log\\(''lines:'', r.length, ''sample:'', JSON.stringify\\(r[0]\\)\\)\\).catch\\(e => console.log\\(''ERROR:'', e.message\\)\\)\")",
+      "Bash(node -e \"const yt = require\\(''youtube-transcript''\\); console.log\\(Object.keys\\(yt\\)\\)\")",
+      "Bash(node -e \"const yt = require\\(''./node_modules/youtube-transcript/dist/youtube-transcript.common.js''\\); console.log\\(Object.keys\\(yt\\)\\)\")",
+      "Bash(node -e \":*)",
+      "Bash(curl -s -X POST \"http://localhost:3000/api/v1/admin/moments/process?limit=10\")",
+      "Bash(curl -s \"http://localhost:3000/api/v1/moments/declarations?limit=3\")"
     ]
   }
 }

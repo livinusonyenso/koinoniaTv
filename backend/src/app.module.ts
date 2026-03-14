@@ -17,6 +17,7 @@ import { User } from './modules/users/user.entity';
 import { WatchHistory } from './modules/watch-history/watch-history.entity';
 import { Bookmark } from './modules/bookmarks/bookmark.entity';
 import { SyncLog } from './modules/youtube-sync/sync-log.entity';
+import { Moment } from './modules/moments/moment.entity';
 
 import { AuthService } from './modules/auth/auth.service';
 import { JwtStrategy } from './modules/auth/jwt.strategy';
@@ -30,6 +31,10 @@ import { WatchHistoryService } from './modules/watch-history/watch-history.servi
 import { YoutubeSyncService } from './modules/youtube-sync/youtube-sync.service';
 import { YoutubeApiService } from './modules/youtube-sync/youtube-api.service';
 import { CategorizationService } from './modules/youtube-sync/categorization.service';
+import { TranscriptService } from './modules/youtube-sync/transcript.service';
+import { MomentsDetectionService } from './modules/moments/moments-detection.service';
+import { MomentsService } from './modules/moments/moments.service';
+import { MomentsController } from './modules/moments/moments.controller';
 
 import { AuthController } from './modules/auth/auth.controller';
 import { VideosController } from './modules/videos/videos.controller';
@@ -64,20 +69,21 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
         database: c.get('DB_NAME'),
         username: c.get('DB_USER'),
         password: c.get('DB_PASSWORD'),
-        entities: [Video, Category, VideoCategory, Clip, Event, User, WatchHistory, Bookmark, SyncLog],
+        entities: [Video, Category, VideoCategory, Clip, Event, User, WatchHistory, Bookmark, SyncLog, Moment],
         synchronize: c.get('NODE_ENV') !== 'production',
         logging: false,
       }),
     }),
     TypeOrmModule.forFeature([
       Video, Category, VideoCategory, Clip, Event,
-      User, WatchHistory, Bookmark, SyncLog,
+      User, WatchHistory, Bookmark, SyncLog, Moment,
     ]),
   ],
   controllers: [
     AuthController, VideosController, CategoriesController,
     ClipsController, EventsController, LiveController,
     SearchController, UsersController, AdminController,
+    MomentsController,
   ],
   providers: [
     AuthService, JwtStrategy,
@@ -85,6 +91,7 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
     EventsService, LiveService,
     BookmarksService, WatchHistoryService,
     YoutubeSyncService, YoutubeApiService, CategorizationService,
+    TranscriptService, MomentsDetectionService, MomentsService,
   ],
 })
 export class AppModule {}
