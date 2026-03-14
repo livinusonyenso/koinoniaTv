@@ -103,4 +103,6 @@ export const momentsApi = {
   getDeclarations: (params?: any) => api.get('/moments/declarations', { params }).then(r => r.data),
   getPrayers:      (params?: any) => api.get('/moments/prayers', { params }).then(r => r.data),
   getTestimonies:  (params?: any) => api.get('/moments/testimonies', { params }).then(r => r.data),
+  getSuggestions:  (params: { momentId: number; youtubeId: string; type: string; limit?: number }) =>
+    api.get('/moments/suggestions', { params }).then(r => r.data) as Promise<any[]>,
 };

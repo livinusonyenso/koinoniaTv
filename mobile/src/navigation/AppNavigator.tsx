@@ -19,6 +19,7 @@ import TestimonialsScreen from '../screens/Testimonials/TestimonialsScreen';
 import MiracleServiceScreen from '../screens/MiracleService/MiracleServiceScreen';
 import EngraftedWordScreen from '../screens/EngraftedWord/EngraftedWordScreen';
 import PrayerRequestScreen from '../screens/PrayerRequest/PrayerRequestScreen';
+import MomentPlayerScreen from '../screens/MomentPlayer/MomentPlayerScreen';
 
 import { Colors, FontSize, Spacing } from '../constants/theme';
 
@@ -124,6 +125,7 @@ export default function AppNavigator() {
         <RootStack.Screen name="MiracleService" component={MiracleServiceScreen} options={{ headerShown: false }} />
         <RootStack.Screen name="EngraftedWord"  component={EngraftedWordScreen}  options={{ headerShown: false }} />
         <RootStack.Screen name="PrayerRequest"  component={PrayerRequestScreen}  options={{ headerShown: false }} />
+        <RootStack.Screen name="MomentPlayer"  component={MomentPlayerScreen}   options={{ headerShown: false }} />
       </RootStack.Navigator>
     </NavigationContainer>
   );

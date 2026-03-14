@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Image, Modal,
+  ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
-import YoutubePlayer from 'react-native-youtube-iframe';
 import { momentsApi } from '../../api';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
 
@@ -18,13 +17,7 @@ function formatTime(s: number) {
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
-function formatDuration(start: number, end: number) {
-  return `${Math.round(end - start)}s`;
-}
-
 export default function PrayerScreen({ navigation }: any) {
-  const [playing, setPlaying] = useState<{ youtubeId: string; startTime: number } | null>(null);
-
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['moments-prayers'],
     queryFn: () => momentsApi.getPrayers({ limit: 40 }),
@@ -35,7 +28,6 @@ export default function PrayerScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.text} />
@@ -44,7 +36,6 @@ export default function PrayerScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Hero */}
       <View style={styles.heroBanner}>
         <MaterialCommunityIcons name="hands-pray" size={40} color={Colors.gold} />
         <View style={{ flex: 1 }}>
@@ -79,7 +70,7 @@ export default function PrayerScreen({ navigation }: any) {
             <TouchableOpacity
               style={styles.card}
               activeOpacity={0.85}
-              onPress={() => setPlaying({ youtubeId: item.youtubeId, startTime: item.startTime })}
+              onPress={() => navigation.navigate('MomentPlayer', { moment: item })}
             >
               <View style={styles.thumbContainer}>
                 <Image
@@ -91,58 +82,24 @@ export default function PrayerScreen({ navigation }: any) {
                   <MaterialCommunityIcons name="play-circle" size={36} color={Colors.gold} />
                 </View>
                 <View style={styles.durationBadge}>
-                  <Text style={styles.durationText}>{formatDuration(item.startTime, item.endTime)}</Text>
+                  <Text style={styles.durationText}>{Math.round(item.endTime - item.startTime)}s</Text>
                 </View>
               </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.cardSermon} numberOfLines={1}>
-                  <MaterialCommunityIcons name="play-box" size={12} color={Colors.textMuted} /> {item.sermonTitle}
-                </Text>
+                <Text style={styles.cardSermon} numberOfLines={1}>{item.sermonTitle}</Text>
                 <View style={styles.cardMeta}>
                   <MaterialCommunityIcons name="clock-outline" size={12} color={Colors.textMuted} />
-                  <Text style={styles.cardTime}> Starts at {formatTime(item.startTime)}</Text>
+                  <Text style={styles.cardTime}> @ {formatTime(item.startTime)}</Text>
                 </View>
                 {!!item.transcriptText && (
-                  <Text style={styles.transcript} numberOfLines={2}>
-                    "{item.transcriptText}"
-                  </Text>
+                  <Text style={styles.transcript} numberOfLines={2}>"{item.transcriptText}"</Text>
                 )}
               </View>
             </TouchableOpacity>
           )}
         />
       )}
-
-      {/* Player Modal */}
-      <Modal
-        visible={!!playing}
-        animationType="slide"
-        onRequestClose={() => setPlaying(null)}
-        statusBarTranslucent
-      >
-        <SafeAreaView style={styles.playerModal} edges={['top', 'bottom']}>
-          <View style={styles.playerHeader}>
-            <TouchableOpacity onPress={() => setPlaying(null)} style={styles.closeBtn}>
-              <MaterialCommunityIcons name="close" size={24} color={Colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.playerTitle}>Prayer Moment</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          {playing && (
-            <YoutubePlayer
-              height={230}
-              videoId={playing.youtubeId}
-              initialPlayerParams={{ start: playing.startTime, controls: true }}
-              play
-            />
-          )}
-          <View style={styles.playerHint}>
-            <MaterialCommunityIcons name="information-outline" size={16} color={Colors.textMuted} />
-            <Text style={styles.playerHintText}> Playing prayer segment from the sermon</Text>
-          </View>
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -161,13 +118,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
     backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
-  heroTitle: { color: Colors.text, fontSize: FontSize.lg, fontWeight: '700' },
-  heroSub:   { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 2 },
-  centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
+  heroTitle:   { color: Colors.text, fontSize: FontSize.lg, fontWeight: '700' },
+  heroSub:     { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 2 },
+  centered:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
   loadingText: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: Spacing.md },
   emptyTitle:  { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', marginTop: Spacing.md },
   emptyText:   { color: Colors.textMuted, fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 22 },
-  list: { padding: Spacing.md, paddingBottom: 40 },
+  list:        { padding: Spacing.md, paddingBottom: 40 },
   card: {
     flexDirection: 'row', backgroundColor: Colors.card,
     borderRadius: Radius.lg, marginBottom: Spacing.sm,
@@ -184,8 +141,7 @@ const styles = StyleSheet.create({
   durationBadge: {
     position: 'absolute', bottom: 6, right: 6,
     backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 5, paddingVertical: 2,
-    borderRadius: Radius.sm,
+    paddingHorizontal: 5, paddingVertical: 2, borderRadius: Radius.sm,
   },
   durationText: { color: Colors.text, fontSize: 10, fontWeight: '600' },
   cardInfo:     { flex: 1, padding: Spacing.sm },
@@ -194,17 +150,4 @@ const styles = StyleSheet.create({
   cardMeta:     { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   cardTime:     { color: Colors.textMuted, fontSize: 10 },
   transcript:   { color: Colors.textMuted, fontSize: 10, fontStyle: 'italic', lineHeight: 14 },
-  playerModal: { flex: 1, backgroundColor: Colors.dark },
-  playerHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,
-  },
-  closeBtn:     { width: 40, height: 40, justifyContent: 'center' },
-  playerTitle:  { color: Colors.text, fontSize: FontSize.md, fontWeight: '700' },
-  playerHint: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: Spacing.md,
-  },
-  playerHintText: { color: Colors.textMuted, fontSize: FontSize.sm },
 });
