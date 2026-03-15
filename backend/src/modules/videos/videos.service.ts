@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Video } from './video.entity';
 
 @Injectable()
@@ -36,8 +36,8 @@ export class VideosService {
     else idQb.orderBy('v.publishedAt', 'DESC');
 
     const total = await idQb.getCount();
-    const idRows = await idQb.offset((page - 1) * limit).limit(limit).getRawMany<{ id: number }>();
-    const ids = idRows.map((r) => r.id);
+    const idRows = await idQb.offset((page - 1) * limit).limit(limit).getRawMany<{ id: string | number }>();
+    const ids = idRows.map((r) => +r.id);   // coerce MySQL string → number
 
     if (!ids.length) {
       return { items: [], total, page, limit, pages: Math.ceil(total / limit) };
@@ -45,7 +45,7 @@ export class VideosService {
 
     // Fetch full records for the current page IDs, preserving order
     const itemMap = new Map<number, Video>();
-    const items = await this.repo.findByIds(ids);
+    const items = await this.repo.findBy({ id: In(ids) });
     items.forEach((v) => itemMap.set(v.id, v));
     const ordered = ids.map((id) => itemMap.get(id)).filter(Boolean) as Video[];
 

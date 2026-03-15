@@ -126,18 +126,21 @@ export class CategorizationService {
     return saved;
   }
 
-  // ── Bulk categorize all videos that have no categories yet ────────────────
+  // ── Bulk categorize all videos ────────────────────────────────────────────
+  // force=true → delete existing keyword-tagged rows first, then re-tag
+  // force=false → only add MISSING category tags (never skips a video)
   async categorizeAll(force = false): Promise<{ processed: number; tagged: number; skipped: number }> {
     const videos = await this.videoRepo.find({ select: ['id', 'title', 'description'] });
     let processed = 0, tagged = 0, skipped = 0;
 
     for (const video of videos) {
-      if (!force) {
-        const existing = await this.vcRepo.count({ where: { videoId: video.id } });
-        if (existing > 0) { skipped++; continue; }
+      if (force) {
+        // Remove previously keyword-tagged rows so we start fresh
+        await this.vcRepo.delete({ videoId: video.id, taggedBy: TaggedBy.KEYWORD });
       }
       const added = await this.autoTag(video);
       if (added > 0) tagged++;
+      else skipped++;
       processed++;
     }
 
