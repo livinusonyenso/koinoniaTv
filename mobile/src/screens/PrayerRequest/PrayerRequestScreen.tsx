@@ -1,26 +1,41 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, Alert, KeyboardAvoidingView, Platform,
+  TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
+import { userApi } from '../../api';
 
-const CATEGORIES = ['Healing', 'Finance', 'Family', 'Career', 'Marriage', 'Salvation', 'Other'];
+const CATEGORIES = ['Healing', 'Financial', 'Family', 'Career', 'Marriage', 'Salvation', 'Other'];
 
 export default function PrayerRequestScreen({ navigation }: any) {
   const [name, setName]         = useState('');
   const [request, setRequest]   = useState('');
   const [category, setCategory] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading]   = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!request.trim()) {
       Alert.alert('Please enter your prayer request.');
       return;
     }
-    setSubmitted(true);
+    if (!category) {
+      Alert.alert('Please select a category.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await userApi.submitPrayerRequest(name.trim() || 'Anonymous', category, request.trim());
+      setSubmitted(true);
+    } catch {
+      Alert.alert('Error', 'Could not submit your request. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -46,6 +61,9 @@ export default function PrayerRequestScreen({ navigation }: any) {
           </Text>
           <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.doneBtnText}>Back to Home</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { setName(''); setRequest(''); setCategory(''); setSubmitted(false); }}>
+            <Text style={[styles.promiseText, { textAlign: 'center', marginTop: Spacing.md }]}>Submit another request</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -119,9 +137,11 @@ export default function PrayerRequestScreen({ navigation }: any) {
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-              <MaterialCommunityIcons name="send" size={20} color={Colors.dark} />
-              <Text style={styles.submitBtnText}>Send Prayer Request</Text>
+            <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.7 }]} onPress={handleSubmit} disabled={loading}>
+              {loading
+                ? <ActivityIndicator size="small" color={Colors.dark} />
+                : <><MaterialCommunityIcons name="send" size={20} color={Colors.dark} /><Text style={styles.submitBtnText}>Send Prayer Request</Text></>
+              }
             </TouchableOpacity>
           </View>
 

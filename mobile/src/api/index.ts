@@ -97,6 +97,8 @@ export const authApi = {
 export const userApi = {
   getBookmarks: (params?: any) => api.get('/users/bookmarks', { params }).then(r => r.data),
   getHistory:   (params?: any) => api.get('/users/history', { params }).then(r => r.data),
+  submitPrayerRequest: (name: string, category: string, request: string) =>
+    api.post('/prayer-requests', { name, category: category.toLowerCase(), request }).then(r => r.data),
 };
 
 export const momentsApi = {

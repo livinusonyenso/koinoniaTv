@@ -18,6 +18,8 @@ import { WatchHistory } from './modules/watch-history/watch-history.entity';
 import { Bookmark } from './modules/bookmarks/bookmark.entity';
 import { SyncLog } from './modules/youtube-sync/sync-log.entity';
 import { Moment } from './modules/moments/moment.entity';
+import { PrayerRequest } from './modules/prayer-requests/prayer-request.entity';
+import { PrayerRequestsModule } from './modules/prayer-requests/prayer-requests.module';
 
 import { AuthService } from './modules/auth/auth.service';
 import { JwtStrategy } from './modules/auth/jwt.strategy';
@@ -69,7 +71,7 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
         database: c.get('DB_NAME'),
         username: c.get('DB_USER'),
         password: c.get('DB_PASSWORD'),
-        entities: [Video, Category, VideoCategory, Clip, Event, User, WatchHistory, Bookmark, SyncLog, Moment],
+        entities: [Video, Category, VideoCategory, Clip, Event, User, WatchHistory, Bookmark, SyncLog, Moment, PrayerRequest],
         synchronize: c.get('NODE_ENV') !== 'production',
         logging: false,
       }),
@@ -78,6 +80,7 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
       Video, Category, VideoCategory, Clip, Event,
       User, WatchHistory, Bookmark, SyncLog, Moment,
     ]),
+    PrayerRequestsModule,
   ],
   controllers: [
     AuthController, VideosController, CategoriesController,
