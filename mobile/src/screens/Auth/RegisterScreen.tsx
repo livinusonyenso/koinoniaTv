@@ -8,41 +8,45 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, FontSize, Radius } from '../../constants/theme';
 import { authApi } from '../../api';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
 export default function RegisterScreen({ navigation }: any) {
-  const [fullName,   setFullName]   = useState('');
-  const [email,      setEmail]      = useState('');
-  const [password,   setPassword]   = useState('');
-  const [confirm,    setConfirm]    = useState('');
-  const [showPass,   setShowPass]   = useState(false);
-  const [showConf,   setShowConf]   = useState(false);
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState('');
+  const { signInWithGoogle, loading: googleLoading, error: googleError, ready } = useGoogleAuth();
+
+  const [fullName,  setFullName]  = useState('');
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [confirm,   setConfirm]   = useState('');
+  const [showPass,  setShowPass]  = useState(false);
+  const [showConf,  setShowConf]  = useState(false);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState('');
+
+  /** Close the AuthModal after successful register → Login with success msg. */
+  const goToLogin = () =>
+    navigation.navigate('Login', { successMessage: 'Account created! Please sign in.' });
 
   const handleRegister = async () => {
     setError('');
-
-    if (!fullName.trim()) { setError('Please enter your full name.');   return; }
-    if (!email.trim())    { setError('Please enter your email.');        return; }
-    if (!password)        { setError('Please enter a password.');        return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    if (password !== confirm) { setError('Passwords do not match.');     return; }
+    if (!fullName.trim())   { setError('Please enter your full name.');            return; }
+    if (!email.trim())      { setError('Please enter your email.');                return; }
+    if (!password)          { setError('Please enter a password.');                return; }
+    if (password.length < 6){ setError('Password must be at least 6 characters.'); return; }
+    if (password !== confirm){ setError('Passwords do not match.');                return; }
 
     setLoading(true);
     try {
       await authApi.register(email.trim().toLowerCase(), password, fullName.trim());
-      navigation.navigate('Login', {
-        successMessage: 'Account created! Please sign in.',
-      });
+      goToLogin();
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? 'Registration failed. Please try again.';
-      console.log(">>>>>>>>>>>",e);
-      
       setError(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setLoading(false);
     }
   };
+
+  const combinedError = error || googleError;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -56,26 +60,54 @@ export default function RegisterScreen({ navigation }: any) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* ── Back ── */}
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+              <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.textMuted} />
+            </TouchableOpacity>
+
             {/* ── Brand ── */}
             <View style={styles.brand}>
               <View style={styles.logoBox}>
-                <MaterialCommunityIcons name="television-play" size={36} color={Colors.gold} />
+                <MaterialCommunityIcons name="television-play" size={32} color={Colors.gold} />
               </View>
               <Text style={styles.wordmark}>KOINONIA TV</Text>
-              <Text style={styles.tagline}>Watch · Grow · Be Transformed</Text>
             </View>
 
-            {/* ── Form ── */}
+            {/* ── Form card ── */}
             <View style={styles.form}>
               <Text style={styles.formTitle}>Create an account</Text>
 
-              {!!error && (
+              {!!combinedError && (
                 <View style={styles.errorBanner}>
                   <MaterialCommunityIcons name="alert-circle" size={16} color={Colors.red} />
-                  <Text style={styles.errorText}>{error}</Text>
+                  <Text style={styles.errorText}>{combinedError}</Text>
                 </View>
               )}
 
+              {/* ── Google ── */}
+              <TouchableOpacity
+                style={[styles.googleBtn, (!ready || googleLoading) && { opacity: 0.6 }]}
+                onPress={signInWithGoogle}
+                disabled={!ready || googleLoading}
+                accessibilityLabel="Sign up with Google"
+              >
+                {googleLoading
+                  ? <ActivityIndicator size="small" color={Colors.dark} />
+                  : <>
+                      <MaterialCommunityIcons name="google" size={18} color={Colors.dark} />
+                      <Text style={styles.googleBtnText}>Sign up with Google</Text>
+                    </>
+                }
+              </TouchableOpacity>
+
+              {/* ── Divider ── */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or sign up with email</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* ── Fields ── */}
               <Text style={styles.label}>Full Name</Text>
               <TextInput
                 style={styles.input}
@@ -181,28 +213,23 @@ export default function RegisterScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.dark },
-  scroll: { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xl },
+  safe:    { flex: 1, backgroundColor: Colors.dark },
+  scroll:  { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg },
+  backBtn: { marginBottom: Spacing.sm },
 
-  // Brand
   brand: { alignItems: 'center', marginBottom: Spacing.xl },
   logoBox: {
-    width: 72, height: 72, borderRadius: Radius.lg,
+    width: 64, height: 64, borderRadius: Radius.lg,
     backgroundColor: Colors.surface,
     borderWidth: 1, borderColor: Colors.gold,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   wordmark: {
-    color: Colors.gold, fontSize: FontSize.xxl,
+    color: Colors.gold, fontSize: FontSize.xl,
     fontWeight: '900', letterSpacing: 3,
   },
-  tagline: {
-    color: Colors.textMuted, fontSize: FontSize.sm,
-    marginTop: 4, letterSpacing: 1,
-  },
 
-  // Error
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: 'rgba(239,68,68,0.1)',
@@ -212,9 +239,23 @@ const styles = StyleSheet.create({
   },
   errorText: { color: Colors.red, fontSize: FontSize.sm, flex: 1 },
 
-  // Form
   form:      { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg },
   formTitle: { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', marginBottom: Spacing.lg },
+
+  // Google
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.sm, backgroundColor: Colors.gold,
+    borderRadius: Radius.pill, paddingVertical: 13,
+    marginBottom: Spacing.md,
+  },
+  googleBtnText: { color: Colors.dark, fontSize: FontSize.md, fontWeight: '800' },
+
+  // Divider
+  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  dividerText: { color: Colors.textMuted, fontSize: FontSize.xs, marginHorizontal: Spacing.sm },
+
   label: {
     color: Colors.textSecond ?? Colors.textMuted,
     fontSize: FontSize.sm, fontWeight: '600', marginBottom: 6,
@@ -229,17 +270,14 @@ const styles = StyleSheet.create({
   },
   passwordRow:   { position: 'relative' },
   passwordInput: { paddingRight: 50 },
-  eyeBtn: {
-    position: 'absolute', right: 14, top: 13,
-  },
+  eyeBtn:        { position: 'absolute', right: 14, top: 13 },
+
   registerBtn: {
     backgroundColor: Colors.gold, borderRadius: Radius.pill,
-    paddingVertical: 15, alignItems: 'center',
-    marginTop: Spacing.sm,
+    paddingVertical: 15, alignItems: 'center', marginTop: Spacing.sm,
   },
   registerBtnText: { color: Colors.dark, fontSize: FontSize.md, fontWeight: '800' },
 
-  // Footer
   footer: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     marginTop: Spacing.xl,

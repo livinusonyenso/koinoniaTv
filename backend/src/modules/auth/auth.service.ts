@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import axios from 'axios';
 import { User } from '../users/user.entity';
 
 @Injectable()
@@ -31,6 +32,47 @@ export class AuthService {
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
+
+    user.lastLogin = new Date();
+    await this.userRepo.save(user);
+    return this.issueTokens(user);
+  }
+
+  /**
+   * Verify a Google token and find-or-create the user.
+   * Accepts either an id_token (when webClientId is configured)
+   * or an access_token (Android-only flow).
+   */
+  async loginWithGoogle(token: string, tokenType: 'id_token' | 'access_token' = 'id_token') {
+    let email: string;
+    let fullName: string | undefined;
+
+    try {
+      if (tokenType === 'id_token') {
+        const { data } = await axios.get(
+          `https://oauth2.googleapis.com/tokeninfo?id_token=${token}`,
+        );
+        email    = data.email;
+        fullName = data.name;
+      } else {
+        const { data } = await axios.get(
+          `https://www.googleapis.com/oauth2/v3/userinfo`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        email    = data.email;
+        fullName = data.name;
+      }
+    } catch {
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    if (!email) throw new UnauthorizedException('Google did not return an email');
+
+    let user = await this.userRepo.findOne({ where: { email } });
+    if (!user) {
+      user = this.userRepo.create({ email, fullName });
+      await this.userRepo.save(user);
+    }
 
     user.lastLogin = new Date();
     await this.userRepo.save(user);

@@ -87,11 +87,13 @@ export const searchApi = {
 };
 
 export const authApi = {
-  login:    (email: string, password: string) =>
+  login:           (email: string, password: string) =>
     api.post('/auth/login', { email, password }).then(r => r.data),
-  register: (email: string, password: string, fullName?: string) =>
+  register:        (email: string, password: string, fullName?: string) =>
     api.post('/auth/register', { email, password, fullName }).then(r => r.data),
-  getMe:    () => api.get('/auth/me').then(r => r.data),
+  loginWithGoogle: (token: string, tokenType = 'id_token') =>
+    api.post('/auth/google', { token, tokenType }).then(r => r.data),
+  getMe:           () => api.get('/auth/me').then(r => r.data),
 };
 
 export const userApi = {

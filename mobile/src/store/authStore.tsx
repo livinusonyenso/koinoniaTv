@@ -1,9 +1,3 @@
-/**
- * Auth store — React Context implementation.
- * Exposes the same interface as a Zustand store so consumers
- * just call useAuthStore() with no extra setup.
- */
-
 import React, {
   createContext, useContext, useState, useCallback,
 } from 'react';
@@ -16,14 +10,20 @@ export type AuthUser = {
   id: number;
   email: string;
   fullName?: string;
+  name?: string;
   isAdmin?: boolean;
 };
 
+export type AuthState = 'loading' | 'guest' | 'authenticated';
+
 interface AuthContextValue {
   user: AuthUser | null;
+  authState: AuthState;
   accessToken: string | null;
+  /** @deprecated use authState === 'loading' */
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (token: string, tokenType?: string) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
 }
@@ -40,53 +40,62 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user,        setUser]        = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [isLoading,   setIsLoading]   = useState(true);
+  const [authState,   setAuthState]   = useState<AuthState>('loading');
 
-  /** Sign in — stores tokens, sets user state. */
-  const login = useCallback(async (email: string, password: string) => {
-    const data = await authApi.login(email, password);
+  const _applyTokens = useCallback(async (data: {
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUser;
+  }) => {
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY,  data.accessToken);
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.refreshToken);
     setAccessToken(data.accessToken);
     setUser(data.user);
+    setAuthState('authenticated');
   }, []);
 
-  /** Sign out — clears SecureStore and resets state. */
+  const login = useCallback(async (email: string, password: string) => {
+    const data = await authApi.login(email, password);
+    await _applyTokens(data);
+  }, [_applyTokens]);
+
+  const loginWithGoogle = useCallback(async (token: string, tokenType = 'id_token') => {
+    const data = await authApi.loginWithGoogle(token, tokenType);
+    await _applyTokens(data);
+  }, [_applyTokens]);
+
   const logout = useCallback(async () => {
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
     setUser(null);
     setAccessToken(null);
+    setAuthState('guest');
   }, []);
 
-  /**
-   * Called once on app start.
-   * Reads stored token → fetches /auth/me to validate / restore user.
-   * The axios interceptor in api/index.ts handles silent token refresh.
-   */
   const restoreSession = useCallback(async () => {
-    setIsLoading(true);
+    setAuthState('loading');
     try {
       const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
-      if (!token) return;
+      if (!token) { setAuthState('guest'); return; }
       setAccessToken(token);
       const me = await authApi.getMe();
       setUser(me);
+      setAuthState('authenticated');
     } catch {
-      // Token invalid or refresh failed — clear everything
       await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
       setUser(null);
       setAccessToken(null);
-    } finally {
-      setIsLoading(false);
+      setAuthState('guest');
     }
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, accessToken, isLoading, login, logout, restoreSession }}
-    >
+    <AuthContext.Provider value={{
+      user, authState, accessToken,
+      isLoading: authState === 'loading',
+      login, loginWithGoogle, logout, restoreSession,
+    }}>
       {children}
     </AuthContext.Provider>
   );

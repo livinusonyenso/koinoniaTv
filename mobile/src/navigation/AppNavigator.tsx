@@ -20,6 +20,9 @@ import MiracleServiceScreen from '../screens/MiracleService/MiracleServiceScreen
 import EngraftedWordScreen from '../screens/EngraftedWord/EngraftedWordScreen';
 import PrayerRequestScreen from '../screens/PrayerRequest/PrayerRequestScreen';
 import MomentPlayerScreen from '../screens/MomentPlayer/MomentPlayerScreen';
+
+// Auth screens
+import AuthModal from '../screens/Auth/AuthModal';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Auth/RegisterScreen';
 
@@ -28,9 +31,10 @@ import { AuthProvider, useAuthStore } from '../store/authStore';
 
 // ── Navigator instances ────────────────────────────────────────
 
-const Tab       = createBottomTabNavigator();
-const RootStack = createNativeStackNavigator();
-const Stack     = createNativeStackNavigator();
+const Tab           = createBottomTabNavigator();
+const RootStack     = createNativeStackNavigator();
+const Stack         = createNativeStackNavigator();
+const AuthStack     = createNativeStackNavigator();
 
 // ── Tab config ────────────────────────────────────────────────
 
@@ -51,8 +55,6 @@ const TAB_LABELS: Record<string, string> = {
   Clips:   'Word',
   Events:  'Prayer',
 };
-
-// ── Shared screen options ─────────────────────────────────────
 
 const screenOpts = {
   headerStyle: { backgroundColor: Colors.surface },
@@ -116,7 +118,19 @@ function EventsStack() {
   );
 }
 
-// ── Main tabs ─────────────────────────────────────────────────
+// ── Auth inner stack (inside the modal) ───────────────────────
+
+function AuthInnerStack() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="AuthPrompt" component={AuthModal}       />
+      <AuthStack.Screen name="Login"      component={LoginScreen}     />
+      <AuthStack.Screen name="Register"   component={RegisterScreen}  />
+    </AuthStack.Navigator>
+  );
+}
+
+// ── Main tabs (always visible) ────────────────────────────────
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
@@ -155,7 +169,7 @@ function MainTabs() {
   );
 }
 
-// ── Splash / loading screen ───────────────────────────────────
+// ── Splash screen ─────────────────────────────────────────────
 
 function SplashScreen() {
   return (
@@ -167,50 +181,49 @@ function SplashScreen() {
   );
 }
 
-// ── Root navigator (auth gate) ────────────────────────────────
+// ── Root navigator ─────────────────────────────────────────────
+//  - Main tabs are ALWAYS accessible (guest mode)
+//  - AuthModal slides up over the app when triggered by useRequireAuth
 
 function RootNavigator() {
-  const { user, isLoading, restoreSession } = useAuthStore();
+  const { authState, restoreSession } = useAuthStore();
 
   useEffect(() => {
     restoreSession();
   }, [restoreSession]);
 
-  if (isLoading) return <SplashScreen />;
+  if (authState === 'loading') return <SplashScreen />;
 
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      {!user ? (
-        // ── Unauthenticated stack ─────────────────────────────
-        <>
-          <RootStack.Screen name="Login"    component={LoginScreen}    />
-          <RootStack.Screen name="Register" component={RegisterScreen} />
-        </>
-      ) : (
-        // ── Authenticated stack ───────────────────────────────
-        <>
-          <RootStack.Screen name="Main" component={MainTabs} />
+      {/* ── Always-visible app ── */}
+      <RootStack.Screen name="Main" component={MainTabs} />
 
-          <RootStack.Screen
-            name="SearchModal"
-            component={SearchScreen}
-            options={{
-              headerShown: true,
-              headerStyle: { backgroundColor: Colors.surface },
-              headerTintColor: Colors.text,
-              headerTitle: 'Search',
-              presentation: 'modal',
-            }}
-          />
-          <RootStack.Screen name="Prayer"         component={PrayerScreen}         options={{ headerShown: false }} />
-          <RootStack.Screen name="Declarations"   component={DeclarationsScreen}   options={{ headerShown: false }} />
-          <RootStack.Screen name="Testimonials"   component={TestimonialsScreen}   options={{ headerShown: false }} />
-          <RootStack.Screen name="MiracleService" component={MiracleServiceScreen} options={{ headerShown: false }} />
-          <RootStack.Screen name="EngraftedWord"  component={EngraftedWordScreen}  options={{ headerShown: false }} />
-          <RootStack.Screen name="PrayerRequest"  component={PrayerRequestScreen}  options={{ headerShown: false }} />
-          <RootStack.Screen name="MomentPlayer"   component={MomentPlayerScreen}   options={{ headerShown: false }} />
-        </>
-      )}
+      <RootStack.Screen
+        name="SearchModal"
+        component={SearchScreen}
+        options={{
+          headerShown: true,
+          headerStyle: { backgroundColor: Colors.surface },
+          headerTintColor: Colors.text,
+          headerTitle: 'Search',
+          presentation: 'modal',
+        }}
+      />
+      <RootStack.Screen name="Prayer"         component={PrayerScreen}         options={{ headerShown: false }} />
+      <RootStack.Screen name="Declarations"   component={DeclarationsScreen}   options={{ headerShown: false }} />
+      <RootStack.Screen name="Testimonials"   component={TestimonialsScreen}   options={{ headerShown: false }} />
+      <RootStack.Screen name="MiracleService" component={MiracleServiceScreen} options={{ headerShown: false }} />
+      <RootStack.Screen name="EngraftedWord"  component={EngraftedWordScreen}  options={{ headerShown: false }} />
+      <RootStack.Screen name="PrayerRequest"  component={PrayerRequestScreen}  options={{ headerShown: false }} />
+      <RootStack.Screen name="MomentPlayer"   component={MomentPlayerScreen}   options={{ headerShown: false }} />
+
+      {/* ── Auth modal — slides up from bottom ── */}
+      <RootStack.Screen
+        name="AuthModal"
+        component={AuthInnerStack}
+        options={{ presentation: 'transparentModal', animation: 'slide_from_bottom' }}
+      />
     </RootStack.Navigator>
   );
 }

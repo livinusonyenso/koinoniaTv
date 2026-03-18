@@ -1,18 +1,18 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, FlatList,
-  StyleSheet, Share, ActivityIndicator, Alert,
+  StyleSheet, Share, ActivityIndicator,
 } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useQuery } from '@tanstack/react-query';
 import { videosApi } from '../../api';
 import { SermonCard } from '../../components/common/SermonCard';
 import { Colors, Spacing, FontSize, Radius } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
 
 export default function VideoPlayerScreen({ route, navigation }: any) {
   const { videoId } = route.params;
-  const { user, logout } = useAuthStore();
+  const { requireAuth } = useRequireAuth();
   const [playing, setPlaying] = useState(true);
   const [showFull, setShowFull] = useState(false);
   const progressRef = useRef(0);
@@ -36,24 +36,6 @@ export default function VideoPlayerScreen({ route, navigation }: any) {
     }, 30000);
     return () => clearInterval(interval);
   }, [videoId]);
-
-  const requireAuth = (action: () => void) => {
-    if (!user) {
-      Alert.alert(
-        'Sign In Required',
-        'Sign in to save bookmarks and track your progress.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Login',
-            onPress: () => logout(), // clears state → auth gate shows Login screen
-          },
-        ],
-      );
-      return;
-    }
-    action();
-  };
 
   const handleShare = async () => {
     if (!video) return;

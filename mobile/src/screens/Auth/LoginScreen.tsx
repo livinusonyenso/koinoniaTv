@@ -8,18 +8,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, FontSize, Radius } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
 export default function LoginScreen({ navigation, route }: any) {
   const { login } = useAuthStore();
+  const { signInWithGoogle, loading: googleLoading, error: googleError, ready } = useGoogleAuth();
 
-  const [email,     setEmail]     = useState('');
-  const [password,  setPassword]  = useState('');
-  const [showPass,  setShowPass]  = useState(false);
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState('');
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
 
-  // Success message passed from RegisterScreen
   const successMsg: string | undefined = route?.params?.successMessage;
+
+  /** Close the AuthModal (or go back if opened standalone). */
+  const closeModal = () => navigation.getParent()?.goBack();
 
   const handleLogin = async () => {
     setError('');
@@ -29,7 +33,7 @@ export default function LoginScreen({ navigation, route }: any) {
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
-      // Auth gate in AppNavigator automatically switches to MainTabs
+      closeModal();
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? 'Invalid email or password.';
       setError(Array.isArray(msg) ? msg[0] : msg);
@@ -37,6 +41,8 @@ export default function LoginScreen({ navigation, route }: any) {
       setLoading(false);
     }
   };
+
+  const combinedError = error || googleError;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -50,16 +56,20 @@ export default function LoginScreen({ navigation, route }: any) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* ── Back ── */}
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+              <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.textMuted} />
+            </TouchableOpacity>
+
             {/* ── Brand ── */}
             <View style={styles.brand}>
               <View style={styles.logoBox}>
-                <MaterialCommunityIcons name="television-play" size={36} color={Colors.gold} />
+                <MaterialCommunityIcons name="television-play" size={32} color={Colors.gold} />
               </View>
               <Text style={styles.wordmark}>KOINONIA TV</Text>
-              <Text style={styles.tagline}>Watch · Grow · Be Transformed</Text>
             </View>
 
-            {/* ── Success message from Register ── */}
+            {/* ── Success banner from Register ── */}
             {!!successMsg && (
               <View style={styles.successBanner}>
                 <MaterialCommunityIcons name="check-circle" size={16} color={Colors.green} />
@@ -67,17 +77,41 @@ export default function LoginScreen({ navigation, route }: any) {
               </View>
             )}
 
-            {/* ── Form ── */}
+            {/* ── Form card ── */}
             <View style={styles.form}>
               <Text style={styles.formTitle}>Welcome back</Text>
 
-              {!!error && (
+              {!!combinedError && (
                 <View style={styles.errorBanner}>
                   <MaterialCommunityIcons name="alert-circle" size={16} color={Colors.red} />
-                  <Text style={styles.errorText}>{error}</Text>
+                  <Text style={styles.errorText}>{combinedError}</Text>
                 </View>
               )}
 
+              {/* ── Google ── */}
+              <TouchableOpacity
+                style={[styles.googleBtn, (!ready || googleLoading) && { opacity: 0.6 }]}
+                onPress={signInWithGoogle}
+                disabled={!ready || googleLoading}
+                accessibilityLabel="Continue with Google"
+              >
+                {googleLoading
+                  ? <ActivityIndicator size="small" color={Colors.dark} />
+                  : <>
+                      <MaterialCommunityIcons name="google" size={18} color={Colors.dark} />
+                      <Text style={styles.googleBtnText}>Continue with Google</Text>
+                    </>
+                }
+              </TouchableOpacity>
+
+              {/* ── Divider ── */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or continue with email</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* ── Email ── */}
               <Text style={styles.label}>Email</Text>
               <TextInput
                 style={styles.input}
@@ -92,6 +126,7 @@ export default function LoginScreen({ navigation, route }: any) {
                 accessibilityLabel="Email address"
               />
 
+              {/* ── Password ── */}
               <Text style={styles.label}>Password</Text>
               <View style={styles.passwordRow}>
                 <TextInput
@@ -119,6 +154,7 @@ export default function LoginScreen({ navigation, route }: any) {
                 </TouchableOpacity>
               </View>
 
+              {/* ── Login button ── */}
               <TouchableOpacity
                 style={[styles.loginBtn, loading && { opacity: 0.75 }]}
                 onPress={handleLogin}
@@ -147,28 +183,23 @@ export default function LoginScreen({ navigation, route }: any) {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.dark },
-  scroll: { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xxl },
+  safe:    { flex: 1, backgroundColor: Colors.dark },
+  scroll:  { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg },
+  backBtn: { marginBottom: Spacing.sm },
 
-  // Brand
-  brand: { alignItems: 'center', marginBottom: Spacing.xxl },
+  brand: { alignItems: 'center', marginBottom: Spacing.xl },
   logoBox: {
-    width: 72, height: 72, borderRadius: Radius.lg,
+    width: 64, height: 64, borderRadius: Radius.lg,
     backgroundColor: Colors.surface,
     borderWidth: 1, borderColor: Colors.gold,
     alignItems: 'center', justifyContent: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   wordmark: {
-    color: Colors.gold, fontSize: FontSize.xxl,
+    color: Colors.gold, fontSize: FontSize.xl,
     fontWeight: '900', letterSpacing: 3,
   },
-  tagline: {
-    color: Colors.textMuted, fontSize: FontSize.sm,
-    marginTop: 4, letterSpacing: 1,
-  },
 
-  // Banners
   successBanner: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: 'rgba(16,185,129,0.12)',
@@ -177,6 +208,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   successText: { color: Colors.green, fontSize: FontSize.sm, flex: 1 },
+
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: 'rgba(239,68,68,0.1)',
@@ -186,9 +218,24 @@ const styles = StyleSheet.create({
   },
   errorText: { color: Colors.red, fontSize: FontSize.sm, flex: 1 },
 
-  // Form
   form:      { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg },
   formTitle: { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', marginBottom: Spacing.lg },
+
+  // Google
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.sm, backgroundColor: Colors.gold,
+    borderRadius: Radius.pill, paddingVertical: 13,
+    marginBottom: Spacing.md,
+  },
+  googleBtnText: { color: Colors.dark, fontSize: FontSize.md, fontWeight: '800' },
+
+  // Divider
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  dividerText: { color: Colors.textMuted, fontSize: FontSize.xs, marginHorizontal: Spacing.sm },
+
+  // Inputs
   label: {
     color: Colors.textSecond ?? Colors.textMuted,
     fontSize: FontSize.sm, fontWeight: '600', marginBottom: 6,
@@ -201,19 +248,16 @@ const styles = StyleSheet.create({
     color: Colors.text, fontSize: FontSize.md,
     marginBottom: Spacing.md,
   },
-  passwordRow:  { position: 'relative' },
+  passwordRow:   { position: 'relative' },
   passwordInput: { paddingRight: 50 },
-  eyeBtn: {
-    position: 'absolute', right: 14, top: 13,
-  },
+  eyeBtn:        { position: 'absolute', right: 14, top: 13 },
+
   loginBtn: {
     backgroundColor: Colors.gold, borderRadius: Radius.pill,
-    paddingVertical: 15, alignItems: 'center',
-    marginTop: Spacing.sm,
+    paddingVertical: 15, alignItems: 'center', marginTop: Spacing.sm,
   },
   loginBtnText: { color: Colors.dark, fontSize: FontSize.md, fontWeight: '800' },
 
-  // Footer
   footer: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     marginTop: Spacing.xl,

@@ -2,7 +2,7 @@ import {
   Controller, Post, Body, Get, UseGuards, Req, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 
 class RegisterDto {
@@ -33,6 +33,16 @@ class LoginDto {
   password: string;
 }
 
+class GoogleAuthDto {
+  @IsString()
+  @IsNotEmpty()
+  token: string;
+
+  @IsIn(['id_token', 'access_token'])
+  @IsOptional()
+  tokenType?: 'id_token' | 'access_token';
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
@@ -46,6 +56,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto.email, dto.password);
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  googleAuth(@Body() dto: GoogleAuthDto) {
+    return this.auth.loginWithGoogle(dto.token, dto.tokenType ?? 'id_token');
   }
 
   @Get('me')

@@ -7,10 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
 import { userApi } from '../../api';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
 
 const CATEGORIES = ['Healing', 'Financial', 'Family', 'Career', 'Marriage', 'Salvation', 'Other'];
 
 export default function PrayerRequestScreen({ navigation }: any) {
+  const { requireAuth } = useRequireAuth();
   const [name, setName]         = useState('');
   const [request, setRequest]   = useState('');
   const [category, setCategory] = useState('');
@@ -158,7 +160,7 @@ export default function PrayerRequestScreen({ navigation }: any) {
               </Text>
             </View>
 
-            <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.7 }]} onPress={handleSubmit} disabled={loading}>
+            <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.7 }]} onPress={() => requireAuth(handleSubmit)} disabled={loading}>
               {loading
                 ? <ActivityIndicator size="small" color={Colors.dark} />
                 : <><MaterialCommunityIcons name="send" size={20} color={Colors.dark} /><Text style={styles.submitBtnText}>Send Prayer Request</Text></>
