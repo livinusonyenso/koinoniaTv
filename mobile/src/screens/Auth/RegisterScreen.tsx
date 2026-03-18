@@ -36,6 +36,8 @@ export default function RegisterScreen({ navigation }: any) {
       });
     } catch (e: any) {
       const msg = e?.response?.data?.message ?? 'Registration failed. Please try again.';
+      console.log(">>>>>>>>>>>",e);
+      
       setError(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setLoading(false);

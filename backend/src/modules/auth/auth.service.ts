@@ -56,6 +56,6 @@ export class AuthService {
       secret: this.config.get('JWT_REFRESH_SECRET'),
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN'),
     });
-    return { accessToken, refreshToken, user: { id: user.id, email: user.email, fullName: user.fullName } };
+    return { accessToken, refreshToken, user: { id: user.id, email: user.email, fullName: user.fullName, name: user.fullName } };
   }
 }
