@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -20,11 +20,19 @@ import MiracleServiceScreen from '../screens/MiracleService/MiracleServiceScreen
 import EngraftedWordScreen from '../screens/EngraftedWord/EngraftedWordScreen';
 import PrayerRequestScreen from '../screens/PrayerRequest/PrayerRequestScreen';
 import MomentPlayerScreen from '../screens/MomentPlayer/MomentPlayerScreen';
+import LoginScreen from '../screens/Auth/LoginScreen';
+import RegisterScreen from '../screens/Auth/RegisterScreen';
 
 import { Colors, FontSize, Spacing } from '../constants/theme';
+import { AuthProvider, useAuthStore } from '../store/authStore';
 
-const Tab   = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+// ── Navigator instances ────────────────────────────────────────
+
+const Tab       = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator();
+const Stack     = createNativeStackNavigator();
+
+// ── Tab config ────────────────────────────────────────────────
 
 type TabIconName = 'home' | 'play-box-multiple' | 'television-play' | 'book-open-variant' | 'hands-pray';
 
@@ -44,6 +52,17 @@ const TAB_LABELS: Record<string, string> = {
   Events:  'Prayer',
 };
 
+// ── Shared screen options ─────────────────────────────────────
+
+const screenOpts = {
+  headerStyle: { backgroundColor: Colors.surface },
+  headerTintColor: Colors.text,
+  headerTitleStyle: { fontWeight: '700' as const, fontSize: FontSize.lg },
+  contentStyle: { backgroundColor: Colors.dark },
+};
+
+// ── Tab icon ──────────────────────────────────────────────────
+
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   const iconName = TAB_ICONS[name] ?? 'home';
   return (
@@ -58,10 +77,23 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   );
 }
 
+// ── Sub-stacks ────────────────────────────────────────────────
+
+function SearchBtn({ navigation }: any) {
+  return (
+    <TouchableOpacity
+      onPress={() => navigation?.navigate?.('SearchModal')}
+      style={{ marginRight: Spacing.md }}
+    >
+      <MaterialCommunityIcons name="magnify" size={22} color={Colors.gold} />
+    </TouchableOpacity>
+  );
+}
+
 function HomeStack() {
   return (
     <Stack.Navigator screenOptions={screenOpts}>
-      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="HomeMain"    component={HomeScreen}        options={{ headerShown: false }} />
       <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );
@@ -70,7 +102,7 @@ function HomeStack() {
 function SermonsStack() {
   return (
     <Stack.Navigator screenOptions={screenOpts}>
-      <Stack.Screen name="SermonsMain" component={SermonsScreen} options={{ title: 'Messages', headerRight: SearchBtn }} />
+      <Stack.Screen name="SermonsMain" component={SermonsScreen}     options={{ title: 'Messages', headerRight: SearchBtn }} />
       <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );
@@ -84,52 +116,7 @@ function EventsStack() {
   );
 }
 
-function SearchBtn({ navigation }: any) {
-  return (
-    <TouchableOpacity onPress={() => navigation?.navigate?.('SearchModal')} style={{ marginRight: Spacing.md }}>
-      <MaterialCommunityIcons name="magnify" size={22} color={Colors.gold} />
-    </TouchableOpacity>
-  );
-}
-
-const screenOpts = {
-  headerStyle: { backgroundColor: Colors.surface },
-  headerTintColor: Colors.text,
-  headerTitleStyle: { fontWeight: '700' as const, fontSize: FontSize.lg },
-  contentStyle: { backgroundColor: Colors.dark },
-};
-
-const RootStack = createNativeStackNavigator();
-
-export default function AppNavigator() {
-  return (
-    <NavigationContainer>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        <RootStack.Screen name="Main" component={MainTabs} />
-
-        {/* Modal screens accessible from anywhere */}
-        <RootStack.Screen
-          name="SearchModal"
-          component={SearchScreen}
-          options={{
-            headerShown: true,
-            headerStyle: { backgroundColor: Colors.surface },
-            headerTintColor: Colors.text,
-            headerTitle: 'Search',
-            presentation: 'modal',
-          }}
-        />
-        <RootStack.Screen name="Prayer"         component={PrayerScreen}         options={{ headerShown: false }} />
-        <RootStack.Screen name="Declarations"   component={DeclarationsScreen}   options={{ headerShown: false }} />
-        <RootStack.Screen name="Testimonials"   component={TestimonialsScreen}   options={{ headerShown: false }} />
-        <RootStack.Screen name="MiracleService" component={MiracleServiceScreen} options={{ headerShown: false }} />
-        <RootStack.Screen name="EngraftedWord"  component={EngraftedWordScreen}  options={{ headerShown: false }} />
-        <RootStack.Screen name="PrayerRequest"  component={PrayerRequestScreen}  options={{ headerShown: false }} />
-        <RootStack.Screen name="MomentPlayer"  component={MomentPlayerScreen}   options={{ headerShown: false }} />
-      </RootStack.Navigator>
-    </NavigationContainer>
-  );
-}
+// ── Main tabs ─────────────────────────────────────────────────
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
@@ -168,6 +155,80 @@ function MainTabs() {
   );
 }
 
+// ── Splash / loading screen ───────────────────────────────────
+
+function SplashScreen() {
+  return (
+    <View style={styles.splash}>
+      <MaterialCommunityIcons name="television-play" size={52} color={Colors.gold} />
+      <Text style={styles.splashWordmark}>KOINONIA TV</Text>
+      <ActivityIndicator color={Colors.gold} size="small" style={{ marginTop: Spacing.xl }} />
+    </View>
+  );
+}
+
+// ── Root navigator (auth gate) ────────────────────────────────
+
+function RootNavigator() {
+  const { user, isLoading, restoreSession } = useAuthStore();
+
+  useEffect(() => {
+    restoreSession();
+  }, [restoreSession]);
+
+  if (isLoading) return <SplashScreen />;
+
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      {!user ? (
+        // ── Unauthenticated stack ─────────────────────────────
+        <>
+          <RootStack.Screen name="Login"    component={LoginScreen}    />
+          <RootStack.Screen name="Register" component={RegisterScreen} />
+        </>
+      ) : (
+        // ── Authenticated stack ───────────────────────────────
+        <>
+          <RootStack.Screen name="Main" component={MainTabs} />
+
+          <RootStack.Screen
+            name="SearchModal"
+            component={SearchScreen}
+            options={{
+              headerShown: true,
+              headerStyle: { backgroundColor: Colors.surface },
+              headerTintColor: Colors.text,
+              headerTitle: 'Search',
+              presentation: 'modal',
+            }}
+          />
+          <RootStack.Screen name="Prayer"         component={PrayerScreen}         options={{ headerShown: false }} />
+          <RootStack.Screen name="Declarations"   component={DeclarationsScreen}   options={{ headerShown: false }} />
+          <RootStack.Screen name="Testimonials"   component={TestimonialsScreen}   options={{ headerShown: false }} />
+          <RootStack.Screen name="MiracleService" component={MiracleServiceScreen} options={{ headerShown: false }} />
+          <RootStack.Screen name="EngraftedWord"  component={EngraftedWordScreen}  options={{ headerShown: false }} />
+          <RootStack.Screen name="PrayerRequest"  component={PrayerRequestScreen}  options={{ headerShown: false }} />
+          <RootStack.Screen name="MomentPlayer"   component={MomentPlayerScreen}   options={{ headerShown: false }} />
+        </>
+      )}
+    </RootStack.Navigator>
+  );
+}
+
+// ── App entry point ───────────────────────────────────────────
+
+export default function AppNavigator() {
+  return (
+    <AuthProvider>
+      <NavigationContainer>
+        <RootNavigator />
+      </NavigationContainer>
+    </AuthProvider>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: Colors.surface,
@@ -179,10 +240,16 @@ const styles = StyleSheet.create({
   tabLabel:         { fontSize: 10, fontWeight: '600', marginTop: 2 },
   tabIconContainer: { alignItems: 'center', justifyContent: 'center', height: 28 },
   tabActiveDot: {
-    position: 'absolute',
-    bottom: -5,
-    width: 4, height: 4,
-    borderRadius: 2,
+    position: 'absolute', bottom: -5,
+    width: 4, height: 4, borderRadius: 2,
     backgroundColor: Colors.gold,
+  },
+  splash: {
+    flex: 1, backgroundColor: Colors.dark,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  splashWordmark: {
+    color: Colors.gold, fontSize: FontSize.xxl,
+    fontWeight: '900', letterSpacing: 3, marginTop: Spacing.md,
   },
 });

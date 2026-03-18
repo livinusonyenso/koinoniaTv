@@ -40,7 +40,7 @@ export default function PrayerRequestScreen({ navigation }: any) {
 
   if (submitted) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.text} />
@@ -48,24 +48,45 @@ export default function PrayerRequestScreen({ navigation }: any) {
           <Text style={styles.headerTitle}>Prayer Request</Text>
           <View style={{ width: 40 }} />
         </View>
-        <View style={styles.successContainer}>
-          <MaterialCommunityIcons name="check-circle" size={72} color={Colors.gold} />
+
+        <ScrollView
+          contentContainerStyle={styles.successContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Icon glow badge */}
+          <View style={styles.successIconWrapper}>
+            <MaterialCommunityIcons name="check-circle" size={80} color={Colors.gold} />
+          </View>
+
           <Text style={styles.successTitle}>Request Submitted!</Text>
+
           <Text style={styles.successText}>
             Your prayer request has been received.{'\n'}
             Our prayer team will stand in agreement with you.
           </Text>
-          <Text style={styles.successVerse}>
-            "The effective, fervent prayer of a righteous man avails much."{'\n'}
-            — James 5:16
-          </Text>
+
+          {/* Verse card */}
+          <View style={styles.successVerseCard}>
+            <MaterialCommunityIcons name="book-open-variant" size={18} color={Colors.gold} style={{ marginBottom: 6 }} />
+            <Text style={styles.successVerse}>
+              "The effective, fervent prayer of a righteous man avails much."
+            </Text>
+            <Text style={styles.successVerseRef}>— James 5:16</Text>
+          </View>
+
           <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()}>
+            <MaterialCommunityIcons name="home" size={20} color={Colors.dark} />
             <Text style={styles.doneBtnText}>Back to Home</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => { setName(''); setRequest(''); setCategory(''); setSubmitted(false); }}>
-            <Text style={[styles.promiseText, { textAlign: 'center', marginTop: Spacing.md }]}>Submit another request</Text>
+
+          <TouchableOpacity
+            style={styles.anotherBtn}
+            onPress={() => { setName(''); setRequest(''); setCategory(''); setSubmitted(false); }}
+          >
+            <MaterialCommunityIcons name="plus-circle-outline" size={18} color={Colors.gold} />
+            <Text style={styles.anotherBtnText}>Submit another request</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -202,23 +223,87 @@ const styles = StyleSheet.create({
     paddingVertical: 14, gap: Spacing.sm,
   },
   submitBtnText: { color: Colors.dark, fontSize: FontSize.md, fontWeight: '800' },
+
+  // ── Success screen ──────────────────────────────────────────
   successContainer: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.xl,
   },
-  successTitle: { color: Colors.text, fontSize: FontSize.xxl, fontWeight: '800', marginTop: Spacing.md },
+  successIconWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(212,175,55,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  successTitle: {
+    color: Colors.text,
+    fontSize: FontSize.xxl,
+    fontWeight: '800',
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
   successText: {
-    color: Colors.textSecond, fontSize: FontSize.md, textAlign: 'center',
-    lineHeight: 24, marginTop: Spacing.sm,
+    color: Colors.textSecond,
+    fontSize: FontSize.md,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: Spacing.lg,
+  },
+  successVerseCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.md,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.gold,
+    padding: Spacing.md,
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    width: '100%',
   },
   successVerse: {
-    color: Colors.gold, fontSize: FontSize.sm, fontStyle: 'italic',
-    textAlign: 'center', marginTop: Spacing.lg, lineHeight: 22,
+    color: Colors.gold,
+    fontSize: FontSize.sm,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  successVerseRef: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    marginTop: 6,
+    fontStyle: 'italic',
   },
   doneBtn: {
-    backgroundColor: Colors.gold, borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.xl, paddingVertical: 14,
-    marginTop: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.gold,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: 14,
+    gap: Spacing.sm,
+    width: '100%',
+    marginBottom: Spacing.md,
   },
-  doneBtnText: { color: Colors.dark, fontSize: FontSize.md, fontWeight: '800' },
+  doneBtnText: {
+    color: Colors.dark,
+    fontSize: FontSize.md,
+    fontWeight: '800',
+  },
+  anotherBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: Spacing.sm,
+  },
+  anotherBtnText: {
+    color: Colors.gold,
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+  },
 });
