@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -7,6 +7,7 @@ import { VideoCategory } from '../categories/video-category.entity';
 import { SyncLog, SyncType } from './sync-log.entity';
 import { YoutubeApiService, YTVideoItem } from './youtube-api.service';
 import { CategorizationService } from './categorization.service';
+import { NotificationService } from '../notifications/notification.service';
 
 @Injectable()
 export class YoutubeSyncService {
@@ -18,6 +19,7 @@ export class YoutubeSyncService {
     @InjectRepository(VideoCategory)  private vcRepo: Repository<VideoCategory>,
     private ytApi: YoutubeApiService,
     private categorization: CategorizationService,
+    @Optional() private notif?: NotificationService,
   ) {}
 
   /** ── Incremental sync every 30 minutes ─── */
@@ -153,6 +155,16 @@ export class YoutubeSyncService {
     await this.logRepo.save(log);
 
     this.logger.log(`Sync done: +${added} added, ~${updated} updated in ${log.durationMs}ms`);
+
+    // Notify users when new sermons are available (fire-and-forget)
+    if (added > 0 && this.notif) {
+      this.notif.sendToAll(
+        '🎙️ New Sermon Available',
+        `${added} new message${added > 1 ? 's' : ''} just added on Koinonia TV. Tap to watch!`,
+        { type: 'new_sermon', count: String(added) },
+      ).catch(() => {});
+    }
+
     return log;
   }
 }

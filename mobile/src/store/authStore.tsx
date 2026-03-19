@@ -3,6 +3,7 @@ import React, {
 } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { authApi } from '../api';
+import { registerForPushNotifications } from '../services/notifications';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -52,6 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(data.accessToken);
     setUser(data.user);
     setAuthState('authenticated');
+    // Register FCM token after successful auth (fire-and-forget)
+    registerForPushNotifications().catch(() => {});
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const me = await authApi.getMe();
       setUser(me);
       setAuthState('authenticated');
+      registerForPushNotifications().catch(() => {});
     } catch {
       await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);

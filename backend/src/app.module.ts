@@ -20,6 +20,8 @@ import { SyncLog } from './modules/youtube-sync/sync-log.entity';
 import { Moment } from './modules/moments/moment.entity';
 import { PrayerRequest } from './modules/prayer-requests/prayer-request.entity';
 import { PrayerRequestsModule } from './modules/prayer-requests/prayer-requests.module';
+import { DeviceToken } from './modules/notifications/device-token.entity';
+import { NotificationModule } from './modules/notifications/notification.module';
 
 import { AuthService } from './modules/auth/auth.service';
 import { JwtStrategy } from './modules/auth/jwt.strategy';
@@ -71,7 +73,7 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
         database: c.get('DB_NAME'),
         username: c.get('DB_USER'),
         password: c.get('DB_PASSWORD'),
-        entities: [Video, Category, VideoCategory, Clip, Event, User, WatchHistory, Bookmark, SyncLog, Moment, PrayerRequest],
+        entities: [Video, Category, VideoCategory, Clip, Event, User, WatchHistory, Bookmark, SyncLog, Moment, PrayerRequest, DeviceToken],
         synchronize: c.get('NODE_ENV') !== 'production',
         logging: false,
       }),
@@ -81,6 +83,7 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
       User, WatchHistory, Bookmark, SyncLog, Moment,
     ]),
     PrayerRequestsModule,
+    NotificationModule,
   ],
   controllers: [
     AuthController, VideosController, CategoriesController,
@@ -95,6 +98,7 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
     BookmarksService, WatchHistoryService,
     YoutubeSyncService, YoutubeApiService, CategorizationService,
     TranscriptService, MomentsDetectionService, MomentsService,
+    // NotificationService is provided by NotificationModule (imported above)
   ],
 })
 export class AppModule {}

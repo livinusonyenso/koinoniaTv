@@ -101,6 +101,8 @@ export const userApi = {
   getHistory:   (params?: any) => api.get('/users/history', { params }).then(r => r.data),
   submitPrayerRequest: (name: string, category: string, request: string) =>
     api.post('/prayer-requests', { name, category: category.toLowerCase(), request }).then(r => r.data),
+  registerDeviceToken: (token: string, platform: string) =>
+    api.post('/notifications/device-token', { token, platform }),
 };
 
 export const momentsApi = {
