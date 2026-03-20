@@ -13,6 +13,7 @@ export type AuthUser = {
   fullName?: string;
   name?: string;
   isAdmin?: boolean;
+  role?: string;
 };
 
 export type AuthState = 'loading' | 'guest' | 'authenticated';

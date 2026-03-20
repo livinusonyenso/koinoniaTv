@@ -21,6 +21,9 @@ import EngraftedWordScreen from '../screens/EngraftedWord/EngraftedWordScreen';
 import PrayerRequestScreen from '../screens/PrayerRequest/PrayerRequestScreen';
 import MomentPlayerScreen from '../screens/MomentPlayer/MomentPlayerScreen';
 import SongsScreen from '../screens/Songs/SongsScreen';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
+import BookmarksScreen from '../screens/Profile/BookmarksScreen';
+import HistoryScreen from '../screens/Profile/HistoryScreen';
 
 // Auth screens
 import AuthModal from '../screens/Auth/AuthModal';
@@ -39,7 +42,13 @@ const AuthStack     = createNativeStackNavigator();
 
 // ── Tab config ────────────────────────────────────────────────
 
-type TabIconName = 'home' | 'play-box-multiple' | 'television-play' | 'book-open-variant' | 'hands-pray';
+type TabIconName =
+  | 'home'
+  | 'play-box-multiple'
+  | 'television-play'
+  | 'book-open-variant'
+  | 'hands-pray'
+  | 'account-circle-outline';
 
 const TAB_ICONS: Record<string, TabIconName> = {
   Home:    'home',
@@ -47,6 +56,7 @@ const TAB_ICONS: Record<string, TabIconName> = {
   Live:    'television-play',
   Clips:   'book-open-variant',
   Events:  'hands-pray',
+  Profile: 'account-circle-outline',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -55,6 +65,7 @@ const TAB_LABELS: Record<string, string> = {
   Live:    'Live',
   Clips:   'Word',
   Events:  'Prayer',
+  Profile: 'Profile',
 };
 
 const screenOpts = {
@@ -119,6 +130,17 @@ function EventsStack() {
   );
 }
 
+function ProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={screenOpts}>
+      <Stack.Screen name="ProfileMain" component={ProfileScreen}   options={{ headerShown: false }} />
+      <Stack.Screen name="Bookmarks"   component={BookmarksScreen} options={{ title: 'Saved Sermons' }} />
+      <Stack.Screen name="History"     component={HistoryScreen}   options={{ title: 'Watch History' }} />
+      <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} options={{ title: '' }} />
+    </Stack.Navigator>
+  );
+}
+
 // ── Auth inner stack (inside the modal) ───────────────────────
 
 function AuthInnerStack() {
@@ -164,8 +186,9 @@ function MainTabs() {
           headerTitle: '🔴  Live',
         }}
       />
-      <Tab.Screen name="Clips"  component={ClipsScreen}  options={{ headerShown: false }} />
-      <Tab.Screen name="Events" component={EventsStack}  />
+      <Tab.Screen name="Clips"   component={ClipsScreen}   options={{ headerShown: false }} />
+      <Tab.Screen name="Events"  component={EventsStack}   />
+      <Tab.Screen name="Profile" component={ProfileStack}  />
     </Tab.Navigator>
   );
 }
