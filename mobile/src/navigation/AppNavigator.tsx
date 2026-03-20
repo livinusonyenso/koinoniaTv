@@ -20,6 +20,7 @@ import MiracleServiceScreen from '../screens/MiracleService/MiracleServiceScreen
 import EngraftedWordScreen from '../screens/EngraftedWord/EngraftedWordScreen';
 import PrayerRequestScreen from '../screens/PrayerRequest/PrayerRequestScreen';
 import MomentPlayerScreen from '../screens/MomentPlayer/MomentPlayerScreen';
+import SongsScreen from '../screens/Songs/SongsScreen';
 
 // Auth screens
 import AuthModal from '../screens/Auth/AuthModal';
@@ -217,6 +218,7 @@ function RootNavigator() {
       <RootStack.Screen name="EngraftedWord"  component={EngraftedWordScreen}  options={{ headerShown: false }} />
       <RootStack.Screen name="PrayerRequest"  component={PrayerRequestScreen}  options={{ headerShown: false }} />
       <RootStack.Screen name="MomentPlayer"   component={MomentPlayerScreen}   options={{ headerShown: false }} />
+      <RootStack.Screen name="Songs"          component={SongsScreen}          options={{ headerShown: false }} />
 
       {/* ── Auth modal — slides up from bottom ── */}
       <RootStack.Screen
