@@ -103,6 +103,10 @@ export const userApi = {
     api.post('/prayer-requests', { name, category: category.toLowerCase(), request }).then(r => r.data),
   registerDeviceToken: (token: string, platform: string) =>
     api.post('/notifications/device-token', { token, platform }),
+  getNotificationPrefs: () =>
+    api.get('/users/me/notification-preferences').then(r => r.data) as Promise<{ notificationsEnabled: boolean }>,
+  updateNotificationPrefs: (data: { notificationsEnabled: boolean }) =>
+    api.patch('/users/me/notification-preferences', data).then(r => r.data) as Promise<{ notificationsEnabled: boolean }>,
 };
 
 export const momentsApi = {

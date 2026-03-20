@@ -12,6 +12,7 @@ import { NotificationService } from '../notifications/notification.service';
 @Injectable()
 export class YoutubeSyncService {
   private readonly logger = new Logger(YoutubeSyncService.name);
+  private wasLive = false;
 
   constructor(
     @InjectRepository(Video)          private videoRepo: Repository<Video>,
@@ -40,6 +41,8 @@ export class YoutubeSyncService {
   @Cron('0 */5 * * * *')
   async liveCheck() {
     const liveVideos = await this.ytApi.checkLiveStatus();
+    const isNowLive = liveVideos.length > 0;
+
     // Reset all currently-live videos first
     await this.videoRepo.update({ isLive: true }, { isLive: false });
 
@@ -49,9 +52,21 @@ export class YoutubeSyncService {
         { isLive: true, isUpcoming: false },
       );
     }
-    if (liveVideos.length > 0) {
+
+    if (isNowLive) {
       this.logger.log(`Live check: ${liveVideos.length} active stream(s)`);
     }
+
+    // Fire once when the stream transitions from offline → live
+    if (isNowLive && !this.wasLive && this.notif) {
+      this.notif.sendToAll(
+        '🔴 Koinonia is LIVE',
+        'The Miracle Service has started. Join now!',
+        { type: 'live_stream' },
+      ).catch(err => this.logger.error(`Live notification failed: ${err.message}`));
+    }
+
+    this.wasLive = isNowLive;
   }
 
   /** ── Upcoming streams check every hour ─── */
@@ -137,6 +152,14 @@ export class YoutubeSyncService {
             const saved = await this.videoRepo.save(this.videoRepo.create(data));
             await this.categorization.autoTag(saved);
             added++;
+            // Fire-and-forget: notify users of genuinely new videos only
+            if (this.notif) {
+              this.notif.sendToAll(
+                '🎙️ New Sermon Available',
+                saved.title,
+                { type: 'new_video', videoId: String(saved.id) },
+              ).catch(err => this.logger.error(`New video notification failed: ${err.message}`));
+            }
           }
         } catch (err) {
           this.logger.error(`Error processing video ${item.id}: ${err.message}`);
@@ -155,15 +178,6 @@ export class YoutubeSyncService {
     await this.logRepo.save(log);
 
     this.logger.log(`Sync done: +${added} added, ~${updated} updated in ${log.durationMs}ms`);
-
-    // Notify users when new sermons are available (fire-and-forget)
-    if (added > 0 && this.notif) {
-      this.notif.sendToAll(
-        '🎙️ New Sermon Available',
-        `${added} new message${added > 1 ? 's' : ''} just added on Koinonia TV. Tap to watch!`,
-        { type: 'new_sermon', count: String(added) },
-      ).catch(() => {});
-    }
 
     return log;
   }

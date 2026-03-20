@@ -22,6 +22,9 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# Firebase / Google config
+google-services.json
+
 # debug
 npm-debug.*
 yarn-debug.*
@@ -32,6 +35,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env.*
 .env*.local
 
 # typescript

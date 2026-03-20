@@ -33,6 +33,9 @@ export class User {
   @Column({ name: 'is_admin', default: false })
   isAdmin: boolean;
 
+  @Column({ name: 'notifications_enabled', default: true })
+  notificationsEnabled: boolean;
+
   @Column({ name: 'last_login', type: 'datetime', nullable: true })
   lastLogin: Date;
 

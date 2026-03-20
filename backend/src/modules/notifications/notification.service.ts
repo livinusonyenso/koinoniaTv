@@ -82,8 +82,13 @@ export class NotificationService {
     const messaging = getMessaging();
     if (!messaging) return;
 
-    const tokens = await this.tokenRepo.find({ select: { token: true } });
-    const tokenStrings = tokens.map(t => t.token);
+    // Only send to users who have notifications enabled
+    const rows = await this.tokenRepo
+      .createQueryBuilder('dt')
+      .select('dt.token', 'token')
+      .where('dt.userId IN (SELECT id FROM users WHERE notifications_enabled = 1)')
+      .getRawMany<{ token: string }>();
+    const tokenStrings = rows.map(r => r.token);
 
     for (let i = 0; i < tokenStrings.length; i += BATCH_SIZE) {
       const batch = tokenStrings.slice(i, i + BATCH_SIZE);

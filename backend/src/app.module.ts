@@ -32,6 +32,7 @@ import { EventsService } from './modules/events/events.service';
 import { LiveService } from './modules/live/live.service';
 import { BookmarksService } from './modules/bookmarks/bookmarks.service';
 import { WatchHistoryService } from './modules/watch-history/watch-history.service';
+import { UsersService } from './modules/users/users.service';
 import { YoutubeSyncService } from './modules/youtube-sync/youtube-sync.service';
 import { YoutubeApiService } from './modules/youtube-sync/youtube-api.service';
 import { CategorizationService } from './modules/youtube-sync/categorization.service';
@@ -95,7 +96,7 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
     AuthService, JwtStrategy,
     VideosService, CategoriesService, ClipsService,
     EventsService, LiveService,
-    BookmarksService, WatchHistoryService,
+    BookmarksService, WatchHistoryService, UsersService,
     YoutubeSyncService, YoutubeApiService, CategorizationService,
     TranscriptService, MomentsDetectionService, MomentsService,
     // NotificationService is provided by NotificationModule (imported above)
