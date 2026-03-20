@@ -29,6 +29,8 @@ const QUICK_ACCESS: Array<{ id: string; label: string; icon: string; bg: string;
   { id: 'miracle',      label: 'Miracle Service',icon: 'lightning-bolt',      bg: '#6E2E1A', screen: 'MiracleService' },
   { id: 'word',         label: 'Engrafted Word', icon: 'book-open-variant',   bg: '#4A148C', screen: 'EngraftedWord'  },
   { id: 'request',      label: 'Prayer Request', icon: 'email-heart-outline', bg: '#006064', screen: 'PrayerRequest'  },
+  { id: 'songs',        label: 'Songs',          icon: 'music-note-whole',    bg: '#1B3A5C', screen: 'Songs'          },
+  { id: 'events',       label: 'Events',         icon: 'calendar-star',       bg: '#2E1A6E', screen: 'Events'         },
 ];
 
 function formatDuration(seconds: number) {
