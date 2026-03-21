@@ -18,14 +18,20 @@ export class WatchHistoryService {
     return { items, total, page, limit };
   }
 
-  async saveProgress(userId: number, videoId: number, progressSeconds: number) {
+  async saveProgress(userId: number, videoId: number, progressSeconds: number, totalSeconds?: number) {
+    const isCompleted = totalSeconds
+      ? progressSeconds >= totalSeconds * 0.9
+      : false;
+
     const existing = await this.repo.findOne({ where: { userId, videoId } });
     if (existing) {
       existing.progressSeconds = progressSeconds;
-      existing.completed = progressSeconds > 0; // simplified; check duration for real completion
+      if (isCompleted) existing.completed = true; // never unmark completed
       return this.repo.save(existing);
     }
-    return this.repo.save(this.repo.create({ userId, videoId, progressSeconds }));
+    return this.repo.save(
+      this.repo.create({ userId, videoId, progressSeconds, completed: isCompleted }),
+    );
   }
 
   async getProgress(userId: number, videoId: number) {

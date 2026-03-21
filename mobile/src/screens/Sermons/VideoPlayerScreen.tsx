@@ -1,22 +1,27 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, FlatList,
-  StyleSheet, Share, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Share, ActivityIndicator,
 } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { videosApi } from '../../api';
 import { SermonCard } from '../../components/common/SermonCard';
 import { Colors, Spacing, FontSize, Radius } from '../../constants/theme';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
+import { useAuthStore } from '../../store/authStore';
 
 export default function VideoPlayerScreen({ route, navigation }: any) {
   const { videoId } = route.params;
   const { requireAuth } = useRequireAuth();
+  const { authState } = useAuthStore();
+  const queryClient = useQueryClient();
   const [playing, setPlaying] = useState(true);
   const [showFull, setShowFull] = useState(false);
   const progressRef = useRef(0);
 
+  // ── Video data ────────────────────────────────────────────────
   const { data: video, isLoading } = useQuery({
     queryKey: ['video', videoId],
     queryFn: () => videosApi.getOne(videoId),
@@ -27,29 +32,88 @@ export default function VideoPlayerScreen({ route, navigation }: any) {
     queryFn: () => videosApi.getRelated(videoId),
   });
 
-  // Auto-save progress every 30s
+  // ── Bookmark state ────────────────────────────────────────────
+  const { data: bkmStatus } = useQuery({
+    queryKey: ['bookmark-status', videoId],
+    queryFn: async () => {
+      // optimistic: default false; try the status endpoint if it exists
+      try {
+        const r = await videosApi.getBookmarkStatus(videoId);
+        return r;
+      } catch {
+        return { bookmarked: false };
+      }
+    },
+    enabled: authState === 'authenticated',
+    staleTime: 60_000,
+  });
+
+  const bookmarked = bkmStatus?.bookmarked ?? false;
+
+  const toggleBookmark = useMutation({
+    mutationFn: () =>
+      bookmarked ? videosApi.unbookmark(videoId) : videosApi.bookmark(videoId),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['bookmark-status', videoId] });
+      queryClient.setQueryData(['bookmark-status', videoId], { bookmarked: !bookmarked });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookmark-status', videoId] });
+      queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+    },
+  });
+
+  const handleBookmark = () => {
+    requireAuth(() => toggleBookmark.mutate());
+  };
+
+  // ── Progress tracking ─────────────────────────────────────────
+  const saveProgress = useCallback((seconds: number) => {
+    if (authState !== 'authenticated') return;
+    videosApi.saveProgress(videoId, seconds, video?.durationSeconds).catch(() => {});
+  }, [videoId, video?.durationSeconds, authState]);
+
+  // Record that the user opened this video (creates the history row immediately)
+  useEffect(() => {
+    if (video && authState === 'authenticated') {
+      saveProgress(0);
+    }
+  }, [video, authState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save every 30s while watching
   useEffect(() => {
     const interval = setInterval(() => {
       if (progressRef.current > 0) {
-        videosApi.saveProgress(videoId, progressRef.current).catch(() => {});
+        saveProgress(progressRef.current);
       }
-    }, 30000);
+    }, 30_000);
     return () => clearInterval(interval);
-  }, [videoId]);
+  }, [saveProgress]);
 
+  // Save on unmount (covers back-button, tab-switch, navigation away)
+  useEffect(() => {
+    return () => {
+      if (progressRef.current > 0) {
+        saveProgress(progressRef.current);
+      }
+    };
+  }, [saveProgress]);
+
+  // ── Share ─────────────────────────────────────────────────────
   const handleShare = async () => {
     if (!video) return;
     await Share.share({
       title: video.title,
-      message: `Watch "${video.title}" on Koinonia TV: https://www.youtube.com/watch?v=${video.youtubeId}`,
+      message: `Watch "${video.title}" on Koinonia TV:\nhttps://www.youtube.com/watch?v=${video.youtubeId}`,
       url: `https://www.youtube.com/watch?v=${video.youtubeId}`,
     });
   };
 
+  // ── Render ────────────────────────────────────────────────────
   if (isLoading || !video) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={Colors.accent} size="large" />
+        <ActivityIndicator color={Colors.gold} size="large" />
       </View>
     );
   }
@@ -79,15 +143,23 @@ export default function VideoPlayerScreen({ route, navigation }: any) {
         {/* Action Row */}
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-            <Text style={styles.actionIcon}>↗</Text>
+            <MaterialCommunityIcons name="share-variant-outline" size={22} color={Colors.gold} />
             <Text style={styles.actionLabel}>Share</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => requireAuth(() => videosApi.bookmark(videoId))}
+            style={[styles.actionBtn, bookmarked && styles.actionBtnActive]}
+            onPress={handleBookmark}
+            disabled={toggleBookmark.isPending}
           >
-            <Text style={styles.actionIcon}>♡</Text>
-            <Text style={styles.actionLabel}>Bookmark</Text>
+            <MaterialCommunityIcons
+              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={22}
+              color={bookmarked ? Colors.dark : Colors.gold}
+            />
+            <Text style={[styles.actionLabel, bookmarked && styles.actionLabelActive]}>
+              {bookmarked ? 'Saved' : 'Save'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -139,27 +211,40 @@ export default function VideoPlayerScreen({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.dark },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.dark },
+  container:     { flex: 1, backgroundColor: Colors.dark },
+  loading:       { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.dark },
   playerWrapper: { backgroundColor: '#000', width: '100%' },
-  info: { padding: Spacing.md },
-  title: { color: Colors.text, fontSize: FontSize.lg, fontWeight: '700', lineHeight: 24, marginBottom: 6 },
-  date: { color: Colors.textMuted, fontSize: FontSize.sm, marginBottom: Spacing.md },
-  actions: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
-  actionBtn: { alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface, borderRadius: Radius.md, minWidth: 80 },
-  actionIcon: { color: Colors.accent, fontSize: 20, marginBottom: 2 },
-  actionLabel: { color: Colors.textMuted, fontSize: FontSize.xs },
-  cats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: Spacing.md },
-  catChip: {
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.accent,
+  info:          { padding: Spacing.md },
+  title:         { color: Colors.text, fontSize: FontSize.lg, fontWeight: '700', lineHeight: 24, marginBottom: 6 },
+  date:          { color: Colors.textMuted, fontSize: FontSize.sm, marginBottom: Spacing.md },
+
+  actions: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
+  actionBtn: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    minWidth: 80,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  catLabel: { color: Colors.accent, fontSize: FontSize.xs, fontWeight: '600' },
+  actionBtnActive: {
+    backgroundColor: Colors.gold,
+    borderColor: Colors.gold,
+  },
+  actionLabel:       { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 3 },
+  actionLabelActive: { color: Colors.dark },
+
+  cats:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: Spacing.md },
+  catChip:  { paddingHorizontal: 12, paddingVertical: 5, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.primary },
+  catLabel: { color: Colors.primary, fontSize: FontSize.xs, fontWeight: '600' },
+
   descLabel: { color: Colors.text, fontSize: FontSize.md, fontWeight: '700', marginBottom: 8 },
-  desc: { color: Colors.textMuted, fontSize: FontSize.sm, lineHeight: 22 },
-  readMore: { color: Colors.accent, fontSize: FontSize.sm, fontWeight: '600', marginTop: 6 },
+  desc:      { color: Colors.textMuted, fontSize: FontSize.sm, lineHeight: 22 },
+  readMore:  { color: Colors.gold, fontSize: FontSize.sm, fontWeight: '600', marginTop: 6 },
+
   relatedSection: { paddingHorizontal: Spacing.md, paddingBottom: 100 },
-  relatedTitle: { color: Colors.text, fontSize: FontSize.lg, fontWeight: '700', marginBottom: Spacing.sm },
-  relatedCard: { marginBottom: Spacing.sm },
+  relatedTitle:   { color: Colors.text, fontSize: FontSize.lg, fontWeight: '700', marginBottom: Spacing.sm },
+  relatedCard:    { marginBottom: Spacing.sm },
 });

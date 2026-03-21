@@ -41,6 +41,12 @@ export class VideosController {
   @Get(':id/related')
   findRelated(@Param('id', ParseIntPipe) id: number) { return this.videos.findRelated(id); }
 
+  @Get(':id/bookmark')
+  @UseGuards(AuthGuard('jwt'))
+  getBookmarkStatus(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.bookmarks.isBookmarked(req.user.id, id);
+  }
+
   @Post(':id/bookmark')
   @UseGuards(AuthGuard('jwt'))
   addBookmark(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
@@ -59,8 +65,9 @@ export class VideosController {
     @Param('id', ParseIntPipe) id: number,
     @Req() req: any,
     @Body('progressSeconds') progressSeconds: number,
+    @Body('totalSeconds') totalSeconds?: number,
   ) {
-    return this.history.saveProgress(req.user.id, id, progressSeconds);
+    return this.history.saveProgress(req.user.id, id, progressSeconds, totalSeconds);
   }
 
   @Get(':id/progress')

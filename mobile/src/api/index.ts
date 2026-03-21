@@ -13,7 +13,7 @@ export const api = axios.create({ baseURL: BASE_URL, timeout: 15000 });
 
 // Attach JWT to every request
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('accessToken');
+  const token = await SecureStore.getItemAsync('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -26,15 +26,15 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       try {
-        const refresh = await SecureStore.getItemAsync('refreshToken');
+        const refresh = await SecureStore.getItemAsync('refresh_token');
         if (!refresh) throw new Error('No refresh token');
         const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken: refresh });
-        await SecureStore.setItemAsync('accessToken', data.accessToken);
+        await SecureStore.setItemAsync('access_token', data.accessToken);
         original.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(original);
       } catch {
-        await SecureStore.deleteItemAsync('accessToken');
-        await SecureStore.deleteItemAsync('refreshToken');
+        await SecureStore.deleteItemAsync('access_token');
+        await SecureStore.deleteItemAsync('refresh_token');
       }
     }
     return Promise.reject(error);
@@ -50,10 +50,11 @@ export const videosApi = {
   getTrending:(limit = 10) => api.get('/videos/trending', { params: { limit } }).then(r => r.data),
   getOne:     (id: number) => api.get(`/videos/${id}`).then(r => r.data),
   getRelated: (id: number) => api.get(`/videos/${id}/related`).then(r => r.data),
-  saveProgress:(id: number, progressSeconds: number) =>
-    api.post(`/videos/${id}/progress`, { progressSeconds }),
-  bookmark:   (id: number) => api.post(`/videos/${id}/bookmark`),
-  unbookmark: (id: number) => api.delete(`/videos/${id}/bookmark`),
+  saveProgress:(id: number, progressSeconds: number, totalSeconds?: number) =>
+    api.post(`/videos/${id}/progress`, { progressSeconds, totalSeconds }),
+  bookmark:          (id: number) => api.post(`/videos/${id}/bookmark`).then(r => r.data),
+  unbookmark:        (id: number) => api.delete(`/videos/${id}/bookmark`).then(r => r.data),
+  getBookmarkStatus: (id: number) => api.get(`/videos/${id}/bookmark`).then(r => r.data) as Promise<{ bookmarked: boolean }>,
 };
 
 export const categoriesApi = {
