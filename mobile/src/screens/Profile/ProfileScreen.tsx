@@ -229,7 +229,7 @@ export default function ProfileScreen({ navigation }: any) {
 
   const displayName = user?.fullName ?? user?.name ?? 'Believer';
   const initials = getInitials(user?.fullName, user?.name, user?.email);
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.isAdmin === true;
 
   const handleLogout = async () => {
     await logout();

@@ -1,16 +1,39 @@
 import React from 'react';
 import {
-  View, Text, FlatList, Image, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
+  View,
+  Text,
+  FlatList,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
-import { Colors, FontSize, Spacing, Radius, Shadow } from '../../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, FontSize, Spacing, Radius } from '../../constants/theme';
 import { userApi } from '../../api';
 
-// ── Types ─────────────────────────────────────────────────────
+const { width: W } = Dimensions.get('window');
 
+// ── Design tokens ─────────────────────────────────────────────
+const T = {
+  bg:         '#0D0A1A',
+  card:       '#16112A',
+  cardBorder: '#2D1B55',
+  purple:     '#4B2E83',
+  purpleGlow: '#6B46C1',
+  gold:       '#F4C430',
+  goldDim:    '#C49A1044',
+  green:      '#22C55E',
+  greenDim:   '#22C55E22',
+  text:       '#F5F0FF',
+  textSub:    '#A89EC9',
+  textMute:   '#5E5380',
+};
+
+// ── Types ─────────────────────────────────────────────────────
 type HistoryItem = {
   id: number;
   videoId: number;
@@ -27,7 +50,6 @@ type HistoryItem = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────
-
 function formatDuration(s: number): string {
   if (!s) return '';
   const h = Math.floor(s / 3600);
@@ -69,8 +91,73 @@ function timeRemaining(progressSeconds: number, durationSeconds: number): string
   return `${m}m left`;
 }
 
-// ── Row item ──────────────────────────────────────────────────
+// ── Skeleton Card ─────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <View style={s.card}>
+      <View style={s.skelThumb} />
+      <View style={s.skelInfo}>
+        <View style={s.skelLine1} />
+        <View style={s.skelLine2} />
+        <View style={s.skelBar} />
+      </View>
+    </View>
+  );
+}
 
+// ── Continue Watching Strip ───────────────────────────────────
+function ContinueCard({
+  item,
+  onPress,
+}: {
+  item: HistoryItem;
+  onPress: () => void;
+}) {
+  const pct = progressPct(item.progressSeconds, item.video.durationSeconds);
+
+  return (
+    <TouchableOpacity
+      style={s.continueCard}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <Image
+        source={{ uri: item.video.thumbnailUrl }}
+        style={s.continueThumb}
+        resizeMode="cover"
+      />
+      {/* gradient over thumb */}
+      <LinearGradient
+        colors={['transparent', 'rgba(13,10,26,0.92)']}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Progress bar at bottom of thumb */}
+      <View style={s.continueProgressTrack}>
+        <View style={[s.continueProgressFill, { width: `${Math.round(pct * 100)}%` }]} />
+      </View>
+
+      {/* Play button overlay */}
+      <View style={s.continuePlayWrap}>
+        <View style={s.continuePlayCircle}>
+          <MaterialCommunityIcons name="play" size={18} color={T.bg} />
+        </View>
+      </View>
+
+      {/* Bottom info */}
+      <View style={s.continueInfo}>
+        <Text style={s.continueTitle} numberOfLines={2}>
+          {cleanTitle(item.video.title)}
+        </Text>
+        <Text style={s.continueLeft}>
+          {timeRemaining(item.progressSeconds, item.video.durationSeconds)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── History Row ───────────────────────────────────────────────
 function HistoryRow({
   item,
   onPress,
@@ -78,63 +165,97 @@ function HistoryRow({
   item: HistoryItem;
   onPress: () => void;
 }) {
-  const v       = item.video;
-  const pct     = progressPct(item.progressSeconds, v.durationSeconds);
+  const v          = item.video;
+  const pct        = progressPct(item.progressSeconds, v.durationSeconds);
   const inProgress = !item.completed && item.progressSeconds > 0;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.82}>
+    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
       {/* Thumbnail */}
-      <View style={styles.thumbWrap}>
-        <Image source={{ uri: v.thumbnailUrl }} style={styles.thumb} resizeMode="cover" />
-        {!!v.durationSeconds && (
-          <View style={styles.durationBadge}>
-            <Text style={styles.durationText}>{formatDuration(v.durationSeconds)}</Text>
+      <View style={s.thumbWrap}>
+        <Image
+          source={{ uri: v.thumbnailUrl }}
+          style={s.thumb}
+          resizeMode="cover"
+        />
+
+        {/* Dim overlay when completed */}
+        {item.completed && (
+          <View style={s.completedOverlay}>
+            <LinearGradient
+              colors={['rgba(34,197,94,0.18)', 'rgba(13,10,26,0.55)']}
+              style={StyleSheet.absoluteFillObject}
+            />
           </View>
         )}
+
+        {/* Duration badge */}
+        {!!v.durationSeconds && (
+          <View style={s.durationBadge}>
+            <Text style={s.durationText}>{formatDuration(v.durationSeconds)}</Text>
+          </View>
+        )}
+
+        {/* Completed tick */}
         {item.completed && (
-          <View style={styles.completedOverlay}>
-            <MaterialCommunityIcons name="check-circle" size={28} color={Colors.green} />
+          <View style={s.completedTick}>
+            <MaterialCommunityIcons name="check" size={11} color="#fff" />
           </View>
         )}
       </View>
 
       {/* Info */}
-      <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={2}>{cleanTitle(v.title)}</Text>
+      <View style={s.info}>
+        <Text style={s.title} numberOfLines={2}>
+          {cleanTitle(v.title)}
+        </Text>
 
-        <View style={styles.meta}>
-          <MaterialCommunityIcons name="clock-outline" size={12} color={Colors.textMuted} />
-          <Text style={styles.metaText}>{timeAgo(item.watchedAt)}</Text>
+        {/* Meta row */}
+        <View style={s.metaRow}>
+          <MaterialCommunityIcons
+            name="clock-outline"
+            size={11}
+            color={T.textMute}
+          />
+          <Text style={s.metaText}>{timeAgo(item.watchedAt)}</Text>
+
           {inProgress && (
             <>
-              <Text style={styles.metaDot}>·</Text>
-              <Text style={[styles.metaText, { color: Colors.gold }]}>
+              <View style={s.metaDot} />
+              <Text style={[s.metaText, { color: T.gold }]}>
                 {timeRemaining(item.progressSeconds, v.durationSeconds)}
               </Text>
             </>
           )}
+
           {item.completed && (
             <>
-              <Text style={styles.metaDot}>·</Text>
-              <Text style={[styles.metaText, { color: Colors.green }]}>Completed</Text>
+              <View style={s.metaDot} />
+              <Text style={[s.metaText, { color: T.green }]}>Finished</Text>
             </>
           )}
         </View>
 
         {/* Progress bar */}
         {!!v.durationSeconds && !item.completed && pct > 0 && (
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${Math.round(pct * 100)}%` }]} />
+          <View style={s.progressTrack}>
+            <View style={[s.progressFill, { width: `${Math.round(pct * 100)}%` }]} />
           </View>
         )}
 
-        {/* Resume button */}
+        {/* Completed bar (full green) */}
+        {item.completed && (
+          <View style={s.progressTrack}>
+            <View style={[s.progressFill, s.progressFillDone, { width: '100%' }]} />
+          </View>
+        )}
+
+        {/* Resume pill */}
         {inProgress && (
-          <TouchableOpacity style={styles.resumeBtn} onPress={onPress} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="play" size={12} color={Colors.dark} />
-            <Text style={styles.resumeText}>Resume</Text>
-          </TouchableOpacity>
+          <View style={s.resumePill}>
+            <MaterialCommunityIcons name="play" size={10} color={T.bg} />
+            <Text style={s.resumeText}>Resume</Text>
+          </View>
         )}
       </View>
     </TouchableOpacity>
@@ -142,7 +263,6 @@ function HistoryRow({
 }
 
 // ── Screen ────────────────────────────────────────────────────
-
 export default function HistoryScreen({ navigation }: any) {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['history', { page: 1, limit: 50 }],
@@ -150,147 +270,345 @@ export default function HistoryScreen({ navigation }: any) {
     staleTime: 2 * 60 * 1000,
   });
 
-  const items: HistoryItem[] = data?.items ?? [];
-  const inProgress = items.filter((i) => !i.completed && i.progressSeconds > 0);
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.gold} size="large" />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const items: HistoryItem[]     = data?.items ?? [];
+  const inProgress: HistoryItem[] = items.filter(
+    (i) => !i.completed && i.progressSeconds > 0,
+  );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={items.length === 0 ? styles.emptyContent : styles.listContent}
         showsVerticalScrollIndicator={false}
         onRefresh={refetch}
         refreshing={isRefetching}
+        contentContainerStyle={
+          items.length === 0 ? s.emptyContent : s.listContent
+        }
         ListHeaderComponent={
-          items.length > 0 ? (
-            <View style={styles.listHeader}>
-              {/* Continue watching strip */}
-              {inProgress.length > 0 && (
-                <View style={styles.continueSection}>
-                  <Text style={styles.continueSectionTitle}>Continue Watching</Text>
-                  <Text style={styles.continueSectionSub}>
-                    {inProgress.length} in progress
+          <>
+            {/* ── Top bar ── */}
+            <View style={s.topBar}>
+              <View>
+                <Text style={s.topBarTitle}>Watch History</Text>
+                {items.length > 0 && (
+                  <Text style={s.topBarSub}>
+                    {data?.total ?? 0} sermons watched
                   </Text>
+                )}
+              </View>
+              {items.length > 0 && (
+                <View style={s.topBarBadge}>
+                  <MaterialCommunityIcons
+                    name="history"
+                    size={14}
+                    color={T.gold}
+                  />
+                  <Text style={s.topBarBadgeText}>All time</Text>
                 </View>
               )}
-              <Text style={styles.countText}>
-                {data?.total ?? 0} {data?.total === 1 ? 'video' : 'videos'} watched
+            </View>
+
+            {/* ── Skeleton loading ── */}
+            {isLoading && (
+              <View style={{ paddingTop: Spacing.sm }}>
+                {[1, 2, 3, 4].map((k) => <SkeletonCard key={k} />)}
+              </View>
+            )}
+
+            {/* ── Continue Watching strip ── */}
+            {!isLoading && inProgress.length > 0 && (
+              <View style={s.continueSection}>
+                <View style={s.continueLabelRow}>
+                  <View style={s.continueAccent} />
+                  <Text style={s.continueLabel}>Continue Watching</Text>
+                  <Text style={s.continueCount}>{inProgress.length}</Text>
+                </View>
+
+                <FlatList
+                  data={inProgress}
+                  keyExtractor={(i) => `c-${i.id}`}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.continueList}
+                  renderItem={({ item }) => (
+                    <ContinueCard
+                      item={item}
+                      onPress={() =>
+                        navigation.navigate('VideoPlayer', {
+                          videoId: item.video.id,
+                          startAt: item.progressSeconds,
+                        })
+                      }
+                    />
+                  )}
+                />
+              </View>
+            )}
+
+            {/* ── All history label ── */}
+            {!isLoading && items.length > 0 && (
+              <View style={s.allLabelRow}>
+                <View style={s.allLabelLine} />
+                <Text style={s.allLabel}>ALL HISTORY</Text>
+                <View style={s.allLabelLine} />
+              </View>
+            )}
+          </>
+        }
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={s.emptyWrap}>
+              {/* Decorative circle */}
+              <View style={s.emptyCircle}>
+                <MaterialCommunityIcons
+                  name="television-play"
+                  size={44}
+                  color={T.textMute}
+                />
+              </View>
+              <Text style={s.emptyTitle}>Nothing watched yet</Text>
+              <Text style={s.emptySub}>
+                Sermons you watch will appear here so you can pick up exactly where you left off
               </Text>
+              <TouchableOpacity
+                style={s.emptyBtn}
+                onPress={() => navigation.navigate('Sermons')}
+                activeOpacity={0.85}
+              >
+                <MaterialCommunityIcons name="play-circle-outline" size={16} color={T.bg} />
+                <Text style={s.emptyBtnText}>Browse Sermons</Text>
+              </TouchableOpacity>
             </View>
           ) : null
         }
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <MaterialCommunityIcons name="television-play" size={64} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>No watch history yet</Text>
-            <Text style={styles.emptySub}>
-              Sermons you watch will appear here so you can easily pick up where you left off
-            </Text>
-            <TouchableOpacity
-              style={styles.browseBtn}
-              onPress={() => navigation.navigate('Sermons')}
-            >
-              <Text style={styles.browseBtnText}>Browse Sermons</Text>
-            </TouchableOpacity>
-          </View>
+        renderItem={({ item }) =>
+          !isLoading ? (
+            <HistoryRow
+              item={item}
+              onPress={() =>
+                navigation.navigate('VideoPlayer', {
+                  videoId: item.video.id,
+                  startAt:
+                    item.progressSeconds > 0 ? item.progressSeconds : undefined,
+                })
+              }
+            />
+          ) : null
         }
-        renderItem={({ item }) => (
-          <HistoryRow
-            item={item}
-            onPress={() =>
-              navigation.navigate('VideoPlayer', {
-                videoId: item.video.id,
-                startAt: item.progressSeconds > 0 ? item.progressSeconds : undefined,
-              })
-            }
-          />
-        )}
       />
     </SafeAreaView>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.dark },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  listContent:  { paddingBottom: Spacing.xxl },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: T.bg },
+  listContent:  { paddingBottom: 40 },
   emptyContent: { flexGrow: 1 },
 
-  listHeader: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.xs,
-  },
-  continueSection: {
+  // ── Top bar ──
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
   },
-  continueSectionTitle: {
-    color: Colors.text,
-    fontSize: FontSize.md,
+  topBarTitle: {
+    color: T.text,
+    fontSize: FontSize.xl,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  topBarSub: {
+    color: T.textMute,
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  topBarBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: T.goldDim,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: T.gold + '33',
+  },
+  topBarBadgeText: {
+    color: T.gold,
+    fontSize: 11,
     fontWeight: '700',
   },
-  continueSectionSub: {
-    color: Colors.gold,
-    fontSize: FontSize.xs,
-    fontWeight: '600',
+
+  // ── Continue watching ──
+  continueSection: {
+    marginBottom: Spacing.md,
   },
-  countText: {
-    color: Colors.textMuted,
-    fontSize: FontSize.sm,
-    fontWeight: '600',
+  continueLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    marginBottom: 12,
+  },
+  continueAccent: {
+    width: 3,
+    height: 16,
+    backgroundColor: T.gold,
+    borderRadius: 2,
+  },
+  continueLabel: {
+    color: T.text,
+    fontSize: FontSize.md,
+    fontWeight: '800',
+    flex: 1,
+  },
+  continueCount: {
+    color: T.gold,
+    fontSize: FontSize.xs,
+    fontWeight: '800',
+    backgroundColor: T.goldDim,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+  },
+  continueList: {
+    paddingLeft: Spacing.md,
+    paddingRight: Spacing.sm,
+    gap: 10,
+  },
+  continueCard: {
+    width: W * 0.52,
+    height: 160,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    backgroundColor: T.card,
+    borderWidth: 1,
+    borderColor: T.cardBorder,
+    position: 'relative',
+    justifyContent: 'flex-end',
+  },
+  continueThumb: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  continueProgressTrack: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  continueProgressFill: {
+    height: '100%',
+    backgroundColor: T.gold,
+  },
+  continuePlayWrap: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+  continuePlayCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: T.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueInfo: {
+    padding: 10,
+    paddingBottom: 14,
+  },
+  continueTitle: {
+    color: T.text,
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginBottom: 3,
+  },
+  continueLeft: {
+    color: T.gold,
+    fontSize: 10,
+    fontWeight: '700',
   },
 
-  // Card
+  // ── All history label ──
+  allLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: 8,
+  },
+  allLabelLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: T.cardBorder,
+  },
+  allLabel: {
+    color: T.textMute,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+
+  // ── Card ──
   card: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    backgroundColor: T.card,
     marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderRadius: Radius.md,
+    marginBottom: 10,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadow.card,
+    borderColor: T.cardBorder,
   },
+
+  // Thumbnail
   thumbWrap: {
+    width: 120,
     position: 'relative',
-    width: 130,
   },
   thumb: {
-    width: 130,
+    width: 120,
     height: '100%',
-    minHeight: 80,
-    backgroundColor: Colors.surfaceAlt,
+    minHeight: 88,
+    backgroundColor: T.cardBorder,
   },
-  durationBadge: {
-    position: 'absolute', bottom: 4, right: 4,
-    backgroundColor: 'rgba(0,0,0,0.78)',
-    paddingHorizontal: 4, paddingVertical: 2,
-    borderRadius: Radius.sm,
-  },
-  durationText: { color: Colors.text, fontSize: 10, fontWeight: '600' },
   completedOverlay: {
     position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
+  durationBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  durationText: {
+    color: T.text,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  completedTick: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: T.green,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -298,93 +616,146 @@ const styles = StyleSheet.create({
   // Info
   info: {
     flex: 1,
-    padding: Spacing.sm,
+    padding: 12,
     justifyContent: 'center',
-    gap: 4,
+    gap: 5,
   },
   title: {
-    color: Colors.text,
+    color: T.text,
     fontSize: FontSize.sm,
-    fontWeight: '600',
-    lineHeight: 18,
+    fontWeight: '700',
+    lineHeight: 19,
   },
-  meta: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     flexWrap: 'wrap',
   },
   metaText: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
+    color: T.textMute,
+    fontSize: 11,
   },
   metaDot: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: T.textMute,
   },
 
-  // Progress
+  // Progress bar
   progressTrack: {
     height: 3,
-    backgroundColor: Colors.border,
+    backgroundColor: T.cardBorder,
     borderRadius: 2,
     overflow: 'hidden',
-    marginTop: 4,
+    marginTop: 2,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.gold,
+    backgroundColor: T.gold,
     borderRadius: 2,
+  },
+  progressFillDone: {
+    backgroundColor: T.green,
   },
 
   // Resume
-  resumeBtn: {
+  resumePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.gold,
-    paddingHorizontal: Spacing.sm,
+    backgroundColor: T.gold,
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: Radius.sm,
+    borderRadius: 100,
     alignSelf: 'flex-start',
     marginTop: 4,
   },
   resumeText: {
-    color: Colors.dark,
-    fontSize: FontSize.xs,
-    fontWeight: '700',
+    color: T.bg,
+    fontSize: 11,
+    fontWeight: '800',
   },
 
-  // Empty
-  emptyBox: {
+  // ── Skeleton ──
+  skelThumb: {
+    width: 120,
+    height: 88,
+    backgroundColor: T.cardBorder,
+  },
+  skelInfo: {
+    flex: 1,
+    padding: 12,
+    gap: 8,
+    justifyContent: 'center',
+  },
+  skelLine1: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: T.cardBorder,
+    width: '90%',
+  },
+  skelLine2: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: T.cardBorder,
+    width: '60%',
+  },
+  skelBar: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: T.cardBorder,
+    width: '75%',
+    marginTop: 4,
+  },
+
+  // ── Empty ──
+  emptyWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xxl,
     paddingHorizontal: Spacing.xl,
+    paddingVertical: 60,
     gap: Spacing.sm,
   },
+  emptyCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: T.card,
+    borderWidth: 1,
+    borderColor: T.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   emptyTitle: {
-    color: Colors.text,
+    color: T.text,
     fontSize: FontSize.lg,
-    fontWeight: '700',
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
   emptySub: {
-    color: Colors.textMuted,
+    color: T.textMute,
     fontSize: FontSize.sm,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
   },
-  browseBtn: {
-    marginTop: Spacing.sm,
-    backgroundColor: Colors.primary,
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: T.gold,
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm + 2,
-    borderRadius: Radius.pill,
+    paddingVertical: 12,
+    borderRadius: 100,
+    marginTop: Spacing.sm,
   },
-  browseBtnText: {
-    color: Colors.text,
-    fontWeight: '700',
+  emptyBtnText: {
+    color: T.bg,
+    fontWeight: '800',
     fontSize: FontSize.sm,
   },
 });

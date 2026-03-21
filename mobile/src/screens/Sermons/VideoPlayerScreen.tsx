@@ -68,34 +68,42 @@ export default function VideoPlayerScreen({ route, navigation }: any) {
   };
 
   // ── Progress tracking ─────────────────────────────────────────
+  // Using useMutation so every successful save invalidates the history cache,
+  // keeping ProfileScreen watched-count and HistoryScreen up to date.
+  const progressMutation = useMutation({
+    mutationFn: (seconds: number) =>
+      videosApi.saveProgress(videoId, seconds, video?.durationSeconds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['history'] });
+    },
+  });
+
   const saveProgress = useCallback((seconds: number) => {
     if (authState !== 'authenticated') return;
-    videosApi.saveProgress(videoId, seconds, video?.durationSeconds).catch(() => {});
-  }, [videoId, video?.durationSeconds, authState]);
+    progressMutation.mutate(seconds);
+  }, [authState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Record that the user opened this video (creates the history row immediately)
+  // On mount: record the view immediately — creates the DB row so it appears
+  // in history at once. Backend never decreases existing progress, so
+  // re-opening a video with saved position does NOT reset it.
   useEffect(() => {
     if (video && authState === 'authenticated') {
       saveProgress(0);
     }
-  }, [video, authState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [video?.id, authState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save every 30s while watching
+  // Save real progress every 30s while watching
   useEffect(() => {
     const interval = setInterval(() => {
-      if (progressRef.current > 0) {
-        saveProgress(progressRef.current);
-      }
+      if (progressRef.current > 0) saveProgress(progressRef.current);
     }, 30_000);
     return () => clearInterval(interval);
   }, [saveProgress]);
 
-  // Save on unmount (covers back-button, tab-switch, navigation away)
+  // Save on unmount — covers back button, tab switch, navigation away
   useEffect(() => {
     return () => {
-      if (progressRef.current > 0) {
-        saveProgress(progressRef.current);
-      }
+      if (progressRef.current > 0) saveProgress(progressRef.current);
     };
   }, [saveProgress]);
 

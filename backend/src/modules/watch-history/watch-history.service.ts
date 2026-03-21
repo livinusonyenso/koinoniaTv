@@ -25,8 +25,12 @@ export class WatchHistoryService {
 
     const existing = await this.repo.findOne({ where: { userId, videoId } });
     if (existing) {
-      existing.progressSeconds = progressSeconds;
-      if (isCompleted) existing.completed = true; // never unmark completed
+      // Never decrease progress — re-opening a video must not wipe saved position
+      if (progressSeconds > existing.progressSeconds) {
+        existing.progressSeconds = progressSeconds;
+      }
+      if (isCompleted) existing.completed = true;
+      // Always save so @UpdateDateColumn (watchedAt) refreshes — moves item to top of history
       return this.repo.save(existing);
     }
     return this.repo.save(
