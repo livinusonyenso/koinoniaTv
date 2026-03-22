@@ -14,6 +14,8 @@ export enum SyncStatus {
   ERROR   = 'error',
 }
 
+@Index('idx_videos_published_at', ['publishedAt'])
+@Index('idx_videos_view_count', ['viewCount'])
 @Entity('videos')
 export class Video {
   @PrimaryGeneratedColumn()

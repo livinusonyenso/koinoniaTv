@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 
 import { configValidationSchema } from './config/config.schema';
+import { AppCacheModule } from './modules/cache/app-cache.module';
+import { ThrottlerExceptionFilter } from './common/filters/throttler-exception.filter';
 
 import { Video } from './modules/videos/video.entity';
 import { Category } from './modules/categories/category.entity';
@@ -51,11 +54,23 @@ import { SearchController } from './modules/search/search.controller';
 import { UsersController } from './modules/users/users.controller';
 import { AdminController } from './modules/youtube-sync/admin.controller';
 
+const ENTITIES = [
+  Video, Category, VideoCategory, Clip, Event,
+  User, WatchHistory, Bookmark, SyncLog, Moment,
+  PrayerRequest, DeviceToken,
+];
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validationSchema: configValidationSchema }),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+
+    // Rate limiting — 100 req / min per IP globally
+    ThrottlerModule.forRoot([{ name: 'global', ttl: 60_000, limit: 100 }]),
+
+    // Redis cache (falls back to in-memory if Redis unavailable)
+    AppCacheModule,
+
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -64,19 +79,23 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
         signOptions: { expiresIn: c.get('JWT_EXPIRES_IN') },
       }),
     }),
+
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (c: ConfigService) => ({
         type: 'mysql',
-        driver: require('mysql2'),
+        connectorPackage: 'mysql2',
         host: c.get('DB_HOST'),
         port: +c.get('DB_PORT'),
         database: c.get('DB_NAME'),
         username: c.get('DB_USER'),
         password: c.get('DB_PASSWORD'),
-        entities: [Video, Category, VideoCategory, Clip, Event, User, WatchHistory, Bookmark, SyncLog, Moment, PrayerRequest, DeviceToken],
-        synchronize: c.get('NODE_ENV') !== 'production',
-        logging: false,
+        entities: ENTITIES,
+        // synchronize is OFF — schema changes go through migrations
+        synchronize: false,
+        migrationsRun: true,
+        migrations: ['dist/database/migrations/*.js'],
+        logging: c.get('NODE_ENV') === 'development' ? ['query', 'error'] : ['error'],
       }),
     }),
     TypeOrmModule.forFeature([
@@ -93,6 +112,11 @@ import { AdminController } from './modules/youtube-sync/admin.controller';
     MomentsController,
   ],
   providers: [
+    // Apply rate-limiting guard to every route
+    { provide: APP_GUARD,  useClass: ThrottlerGuard },
+    // Return clean 429 JSON instead of the default NestJS error shape
+    { provide: APP_FILTER, useClass: ThrottlerExceptionFilter },
+
     AuthService, JwtStrategy,
     VideosService, CategoriesService, ClipsService,
     EventsService, LiveService,

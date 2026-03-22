@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Body, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { YoutubeSyncService } from './youtube-sync.service';
 import { CategorizationService } from './categorization.service';
 import { MomentsDetectionService } from '../moments/moments-detection.service';
@@ -15,6 +16,7 @@ export class AdminController {
     @InjectRepository(SyncLog) private logRepo: Repository<SyncLog>,
   ) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('sync/trigger')
   trigger(@Body('type') type: 'full' | 'incremental' = 'incremental') {
     return this.sync.triggerManualSync(type);

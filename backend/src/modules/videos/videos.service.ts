@@ -1,11 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Video } from './video.entity';
+
+const TTL_LATEST   = 300_000;   //  5 min
+const TTL_TRENDING = 900_000;   // 15 min
 
 @Injectable()
 export class VideosService {
-  constructor(@InjectRepository(Video) private repo: Repository<Video>) {}
+  private readonly logger = new Logger(VideosService.name);
+
+  constructor(
+    @InjectRepository(Video) private repo: Repository<Video>,
+    @Inject(CACHE_MANAGER) private cache: Cache,
+  ) {}
 
   async findAll(query: {
     page?: number;
@@ -16,8 +26,6 @@ export class VideosService {
   }) {
     const { page = 1, limit = 20, category, year, sort = 'latest' } = query;
 
-    // Build a base query that only selects video IDs to get a correct count
-    // (leftJoinAndSelect + take/skip inflates counts due to row duplication)
     const idQb = this.repo
       .createQueryBuilder('v')
       .select('v.id', 'id')
@@ -37,13 +45,12 @@ export class VideosService {
 
     const total = await idQb.getCount();
     const idRows = await idQb.offset((page - 1) * limit).limit(limit).getRawMany<{ id: string | number }>();
-    const ids = idRows.map((r) => +r.id);   // coerce MySQL string → number
+    const ids = idRows.map((r) => +r.id);
 
     if (!ids.length) {
       return { items: [], total, page, limit, pages: Math.ceil(total / limit) };
     }
 
-    // Fetch full records for the current page IDs, preserving order
     const itemMap = new Map<number, Video>();
     const items = await this.repo.findBy({ id: In(ids) });
     items.forEach((v) => itemMap.set(v.id, v));
@@ -71,20 +78,46 @@ export class VideosService {
   }
 
   async findLatest(limit = 10): Promise<Video[]> {
-    return this.repo.find({
+    const key = 'videos:latest';
+    try {
+      const cached = await this.cache.get<Video[]>(key);
+      if (cached) {
+        this.logger.debug('CACHE HIT  videos:latest');
+        return cached;
+      }
+    } catch { /* Redis unavailable — fall through to DB */ }
+
+    this.logger.debug('CACHE MISS videos:latest — fetching from DB');
+    const result = await this.repo.find({
       where: { isLive: false, isUpcoming: false },
       relations: ['videoCategories', 'videoCategories.category'],
       order: { publishedAt: 'DESC' },
       take: limit,
     });
+
+    try { await this.cache.set(key, result, TTL_LATEST); } catch { /* ignore */ }
+    return result;
   }
 
   async findTrending(limit = 10): Promise<Video[]> {
-    return this.repo.find({
+    const key = 'videos:trending';
+    try {
+      const cached = await this.cache.get<Video[]>(key);
+      if (cached) {
+        this.logger.debug('CACHE HIT  videos:trending');
+        return cached;
+      }
+    } catch { /* Redis unavailable — fall through to DB */ }
+
+    this.logger.debug('CACHE MISS videos:trending — fetching from DB');
+    const result = await this.repo.find({
       where: { isLive: false, isUpcoming: false },
       order: { viewCount: 'DESC' },
       take: limit,
     });
+
+    try { await this.cache.set(key, result, TTL_TRENDING); } catch { /* ignore */ }
+    return result;
   }
 
   async findRelated(videoId: number, limit = 6): Promise<Video[]> {
@@ -113,5 +146,14 @@ export class VideosService {
 
     const [items, total] = await qb.getManyAndCount();
     return { items, total, page, limit };
+  }
+
+  /** Called by YoutubeSyncService after saving new videos */
+  async invalidateVideoCache(): Promise<void> {
+    try {
+      await this.cache.del('videos:latest');
+      await this.cache.del('videos:trending');
+      this.logger.debug('Cache invalidated: videos:latest, videos:trending');
+    } catch { /* ignore */ }
   }
 }

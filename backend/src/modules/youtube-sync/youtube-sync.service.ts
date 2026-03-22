@@ -1,7 +1,9 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Video, SyncStatus } from '../videos/video.entity';
 import { VideoCategory } from '../categories/video-category.entity';
 import { SyncLog, SyncType } from './sync-log.entity';
@@ -21,6 +23,7 @@ export class YoutubeSyncService {
     private ytApi: YoutubeApiService,
     private categorization: CategorizationService,
     @Optional() private notif?: NotificationService,
+    @Optional() @Inject(CACHE_MANAGER) private cache?: Cache,
   ) {}
 
   /** ── Incremental sync every 30 minutes ─── */
@@ -176,6 +179,15 @@ export class YoutubeSyncService {
     log.durationMs    = Date.now() - start;
     log.completedAt   = new Date();
     await this.logRepo.save(log);
+
+    // Bust video caches whenever new content was added or stats updated
+    if ((added > 0 || updated > 0) && this.cache) {
+      try {
+        await this.cache.del('videos:latest');
+        await this.cache.del('videos:trending');
+        this.logger.debug('Cache invalidated after sync: videos:latest, videos:trending');
+      } catch { /* cache failure must never affect sync */ }
+    }
 
     this.logger.log(`Sync done: +${added} added, ~${updated} updated in ${log.durationMs}ms`);
 

@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, ManyToOne,
-  JoinColumn, CreateDateColumn,
+  JoinColumn, CreateDateColumn, Index,
 } from 'typeorm';
 import { Video } from '../videos/video.entity';
 import { Category } from './category.entity';
@@ -11,6 +11,7 @@ export enum TaggedBy {
   AI      = 'ai',
 }
 
+@Index('idx_video_categories_composite', ['videoId', 'categoryId'], { unique: true })
 @Entity('video_categories')
 export class VideoCategory {
   @PrimaryGeneratedColumn()

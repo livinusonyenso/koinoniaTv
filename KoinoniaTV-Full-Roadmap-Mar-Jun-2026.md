@@ -2187,6 +2187,6 @@ mobile/src/
 6. **Stay solo until it hurts** — bring collaborators only when the bottleneck is truly people
 
 ---
-
+Add something like community,something like whatsapp channel,a chating icon where people can just chats and share exprince ,also suggestion box,where people can suggest something
 *Last updated: March 17, 2026*
 *Built with purpose. Powered by faith. Koinonia TV.*
