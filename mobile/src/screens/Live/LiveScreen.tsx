@@ -4,6 +4,8 @@ import YoutubePlayer from 'react-native-youtube-iframe';
 import { useQuery } from '@tanstack/react-query';
 import { liveApi } from '../../api';
 import { Colors, Spacing, FontSize, Radius } from '../../constants/theme';
+import { useNetwork } from '../../hooks/useNetworkState';
+import ErrorState from '../../components/common/ErrorState';
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
@@ -15,10 +17,12 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
 }
 
 export default function LiveScreen() {
-  const { data: status, isLoading, refetch } = useQuery({
+  const { isConnected } = useNetwork();
+
+  const { data: status, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['live-status'],
     queryFn: liveApi.getStatus,
-    refetchInterval: 60000, // auto-refresh every 60s
+    refetchInterval: 60000,
     staleTime: 30000,
   });
 
@@ -28,7 +32,6 @@ export default function LiveScreen() {
     staleTime: 60000,
   });
 
-  // Compute countdown for first upcoming stream
   const [countdown, setCountdown] = React.useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const nextStream = upcoming?.[0];
 
@@ -51,7 +54,19 @@ export default function LiveScreen() {
   }, [nextStream]);
 
   if (isLoading) {
-    return <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>;
+    return <View style={styles.center}><ActivityIndicator color={Colors.gold} size="large" /></View>;
+  }
+
+  if (isError) {
+    const isNetworkError = !isConnected || (error as any)?.message === 'Network Error';
+    return (
+      <ErrorState
+        type={isNetworkError ? 'network' : 'server'}
+        title="Could not check live status"
+        message="We couldn't reach the server to check if a service is live. Pull down to try again."
+        onRetry={refetch}
+      />
+    );
   }
 
   // ── LIVE NOW ──
@@ -88,13 +103,13 @@ export default function LiveScreen() {
         </View>
 
         <View style={styles.countdownRow}>
-          <CountdownUnit value={countdown.days}    label="DAYS"    />
+          <CountdownUnit value={countdown.days}    label="DAYS" />
           <Text style={styles.countSep}>:</Text>
-          <CountdownUnit value={countdown.hours}   label="HRS"     />
+          <CountdownUnit value={countdown.hours}   label="HRS"  />
           <Text style={styles.countSep}>:</Text>
-          <CountdownUnit value={countdown.minutes} label="MIN"     />
+          <CountdownUnit value={countdown.minutes} label="MIN"  />
           <Text style={styles.countSep}>:</Text>
-          <CountdownUnit value={countdown.seconds} label="SEC"     />
+          <CountdownUnit value={countdown.seconds} label="SEC"  />
         </View>
 
         <Text style={styles.upcomingNote}>
@@ -107,7 +122,7 @@ export default function LiveScreen() {
     );
   }
 
-  // ── OFFLINE ──
+  // ── OFFLINE (no service right now) ──
   return (
     <View style={styles.center}>
       <Text style={styles.offlineIcon}>📡</Text>
@@ -129,26 +144,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     padding: Spacing.md, backgroundColor: Colors.surface,
   },
-  liveBadge: { backgroundColor: Colors.live, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.sm },
+  liveBadge:     { backgroundColor: Colors.live, paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.sm },
   liveBadgeText: { color: Colors.text, fontSize: FontSize.xs, fontWeight: '800' },
-  liveTitle: { flex: 1, color: Colors.text, fontSize: FontSize.md, fontWeight: '600' },
-  liveInfo: { padding: Spacing.md },
-  liveDesc: { color: Colors.textMuted, fontSize: FontSize.sm, marginBottom: Spacing.md },
+  liveTitle:     { flex: 1, color: Colors.text, fontSize: FontSize.md, fontWeight: '600' },
+  liveInfo:      { padding: Spacing.md },
+  liveDesc:      { color: Colors.textMuted, fontSize: FontSize.sm, marginBottom: Spacing.md },
   upcomingHeader: { padding: Spacing.xl, alignItems: 'center' },
-  upcomingLabel: { color: Colors.accent, fontSize: FontSize.xs, fontWeight: '800', letterSpacing: 2, marginBottom: 12 },
-  upcomingTitle: { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', textAlign: 'center', marginBottom: 8, lineHeight: 28 },
-  upcomingDate: { color: Colors.textMuted, fontSize: FontSize.sm, textAlign: 'center' },
-  countdownRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl, marginBottom: Spacing.xl },
-  countUnit: { alignItems: 'center', width: 70 },
-  countNum: { color: Colors.text, fontSize: 44, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  countLabel: { color: Colors.textMuted, fontSize: FontSize.xs, letterSpacing: 1, marginTop: 4 },
-  countSep: { color: Colors.accent, fontSize: 36, fontWeight: '700', marginBottom: 16, marginHorizontal: 4 },
-  upcomingNote: { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg, fontSize: FontSize.sm },
-  notifyBtn: { alignSelf: 'center', backgroundColor: Colors.accent, paddingHorizontal: Spacing.xl, paddingVertical: 12, borderRadius: Radius.pill },
-  notifyText: { color: Colors.dark, fontSize: FontSize.md, fontWeight: '700' },
-  refreshBtn: { marginTop: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border },
-  refreshText: { color: Colors.textMuted, fontSize: FontSize.sm },
-  offlineIcon: { fontSize: 64, marginBottom: Spacing.md },
-  offlineTitle: { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', marginBottom: Spacing.sm, textAlign: 'center' },
-  offlineDesc: { color: Colors.textMuted, fontSize: FontSize.md, textAlign: 'center', lineHeight: 22, marginBottom: Spacing.lg },
+  upcomingLabel:  { color: Colors.gold, fontSize: FontSize.xs, fontWeight: '800', letterSpacing: 2, marginBottom: 12 },
+  upcomingTitle:  { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', textAlign: 'center', marginBottom: 8, lineHeight: 28 },
+  upcomingDate:   { color: Colors.textMuted, fontSize: FontSize.sm, textAlign: 'center' },
+  countdownRow:   { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl, marginBottom: Spacing.xl },
+  countUnit:      { alignItems: 'center', width: 70 },
+  countNum:       { color: Colors.text, fontSize: 44, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  countLabel:     { color: Colors.textMuted, fontSize: FontSize.xs, letterSpacing: 1, marginTop: 4 },
+  countSep:       { color: Colors.gold, fontSize: 36, fontWeight: '700', marginBottom: 16, marginHorizontal: 4 },
+  upcomingNote:   { color: Colors.textMuted, textAlign: 'center', paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg, fontSize: FontSize.sm },
+  notifyBtn:      { alignSelf: 'center', backgroundColor: Colors.gold, paddingHorizontal: Spacing.xl, paddingVertical: 12, borderRadius: Radius.pill },
+  notifyText:     { color: Colors.dark, fontSize: FontSize.md, fontWeight: '700' },
+  refreshBtn:     { marginTop: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.border },
+  refreshText:    { color: Colors.textMuted, fontSize: FontSize.sm },
+  offlineIcon:    { fontSize: 64, marginBottom: Spacing.md },
+  offlineTitle:   { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', marginBottom: Spacing.sm, textAlign: 'center' },
+  offlineDesc:    { color: Colors.textMuted, fontSize: FontSize.md, textAlign: 'center', lineHeight: 22, marginBottom: Spacing.lg },
 });

@@ -10,6 +10,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
 import { videosApi, categoriesApi, eventsApi } from '../../api';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
+import { useNetwork } from '../../hooks/useNetworkState';
+import ErrorState from '../../components/common/ErrorState';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const SERMON_CARD_W = SCREEN_W * 0.60;
@@ -53,8 +55,13 @@ function cleanTitle(title: string) {
 export default function HomeScreen({ navigation }: any) {
   const scripture = SCRIPTURES[new Date().getDay()];
 
-  const { data: latest, isLoading: loadingLatest, refetch: refetchLatest } =
-    useQuery({ queryKey: ['latest'], queryFn: () => videosApi.getLatest(10), staleTime: 5 * 60 * 1000 });
+  const { isConnected } = useNetwork();
+
+  const {
+    data: latest, isLoading: loadingLatest,
+    isError: latestError, error: latestErr,
+    refetch: refetchLatest,
+  } = useQuery({ queryKey: ['latest'], queryFn: () => videosApi.getLatest(10), staleTime: 5 * 60 * 1000 });
 
   const { data: trending, refetch: refetchTrending } =
     useQuery({ queryKey: ['trending'], queryFn: () => videosApi.getTrending(8), staleTime: 5 * 60 * 1000 });
@@ -73,6 +80,19 @@ export default function HomeScreen({ navigation }: any) {
   }, [refetchLatest, refetchTrending]);
 
   const hero = latest?.[0];
+
+  // Show error state if the primary content fails to load and there's no cached data
+  if (latestError && !latest) {
+    const isNetworkError = !isConnected || (latestErr as any)?.message === 'Network Error';
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.dark }} edges={['top']}>
+        <ErrorState
+          type={isNetworkError ? 'network' : 'server'}
+          onRetry={refetchLatest}
+        />
+      </SafeAreaView>
+    );
+  }
 
   // Prefetch thumbnails for off-screen sermon cards
   useEffect(() => {

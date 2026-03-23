@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
@@ -53,7 +53,19 @@ export default function EngraftedWordScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={false}
+            onRefresh={() => {}}
+            tintColor="#F4C430"
+            colors={['#F4C430']}
+            progressBackgroundColor="#16112A"
+          />
+        }
+      >
         <View style={styles.heroBanner}>
           <MaterialCommunityIcons name="book-open-variant" size={52} color={Colors.gold} />
           <Text style={styles.heroTitle}>The Engrafted Word</Text>

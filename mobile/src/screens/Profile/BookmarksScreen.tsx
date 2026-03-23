@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Dimensions,
+  StyleSheet, ActivityIndicator, Dimensions, RefreshControl,
 } from 'react-native';
 import SmartImage from '../../components/common/SmartImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, FontSize, Spacing, Radius, Shadow } from '../../constants/theme';
 import { userApi } from '../../api';
+import { useNetwork } from '../../hooks/useNetworkState';
+import { useRefresh } from '../../hooks/useRefresh';
+import ErrorState from '../../components/common/ErrorState';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -85,11 +88,13 @@ function BookmarkCard({
 // ── Screen ────────────────────────────────────────────────────
 
 export default function BookmarksScreen({ navigation }: any) {
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { isConnected } = useNetwork();
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['bookmarks', { page: 1, limit: 50 }],
     queryFn: () => userApi.getBookmarks({ page: 1, limit: 50 }),
     staleTime: 5 * 60 * 1000,
   });
+  const { refreshing, onRefresh } = useRefresh(refetch);
 
   const items: BookmarkItem[] = data?.items ?? [];
 
@@ -103,6 +108,15 @@ export default function BookmarksScreen({ navigation }: any) {
     );
   }
 
+  if (isError && items.length === 0) {
+    const isNetworkError = !isConnected || (error as any)?.message === 'Network Error';
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ErrorState type={isNetworkError ? 'network' : 'server'} onRetry={refetch} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <FlatList
@@ -112,8 +126,15 @@ export default function BookmarksScreen({ navigation }: any) {
         columnWrapperStyle={styles.row}
         contentContainerStyle={items.length === 0 ? styles.emptyContent : styles.listContent}
         showsVerticalScrollIndicator={false}
-        onRefresh={refetch}
-        refreshing={isRefetching}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#F4C430"
+            colors={['#F4C430', '#4B2E83']}
+            progressBackgroundColor="#16112A"
+          />
+        }
         ListHeaderComponent={
           <View style={styles.listHeader}>
             <Text style={styles.countText}>

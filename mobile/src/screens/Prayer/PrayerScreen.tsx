@@ -1,13 +1,16 @@
 import React from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Image,
+  ActivityIndicator, Image, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
 import { momentsApi } from '../../api';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
+import { useNetwork } from '../../hooks/useNetworkState';
+import { useRefresh } from '../../hooks/useRefresh';
+import ErrorState from '../../components/common/ErrorState';
 
 function formatTime(s: number) {
   const h = Math.floor(s / 3600);
@@ -18,13 +21,16 @@ function formatTime(s: number) {
 }
 
 export default function PrayerScreen({ navigation }: any) {
-  const { data, isLoading, refetch } = useQuery({
+  const { isConnected } = useNetwork();
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['moments-prayers'],
     queryFn: () => momentsApi.getPrayers({ limit: 40 }),
     staleTime: 10 * 60 * 1000,
   });
+  const { refreshing, onRefresh } = useRefresh(refetch);
 
   const moments = data?.items ?? [];
+  const isNetworkError = !isConnected || (error as any)?.message === 'Network Error';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -49,23 +55,25 @@ export default function PrayerScreen({ navigation }: any) {
           <ActivityIndicator color={Colors.gold} size="large" />
           <Text style={styles.loadingText}>Loading prayer moments…</Text>
         </View>
+      ) : isError ? (
+        <ErrorState type={isNetworkError ? 'network' : 'server'} onRetry={refetch} />
       ) : moments.length === 0 ? (
-        <View style={styles.centered}>
-          <MaterialCommunityIcons name="hands-pray" size={52} color={Colors.textMuted} />
-          <Text style={styles.emptyTitle}>No prayer moments yet</Text>
-          <Text style={styles.emptyText}>
-            Prayer moments are auto-detected from sermon transcripts.{'\n'}
-            Check back after the next sync.
-          </Text>
-        </View>
+        <ErrorState type="empty" title="No prayer moments yet" message={'Prayer moments are auto-detected from sermon transcripts.\nCheck back after the next sync.'} />
       ) : (
         <FlatList
           data={moments}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          onRefresh={refetch}
-          refreshing={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors.gold}
+              colors={[Colors.gold]}
+              progressBackgroundColor={Colors.card}
+            />
+          }
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.card}
@@ -122,8 +130,6 @@ const styles = StyleSheet.create({
   heroSub:     { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 2 },
   centered:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
   loadingText: { color: Colors.textMuted, fontSize: FontSize.sm, marginTop: Spacing.md },
-  emptyTitle:  { color: Colors.text, fontSize: FontSize.xl, fontWeight: '700', marginTop: Spacing.md },
-  emptyText:   { color: Colors.textMuted, fontSize: FontSize.sm, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 22 },
   list:        { padding: Spacing.md, paddingBottom: 40 },
   card: {
     flexDirection: 'row', backgroundColor: Colors.card,

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import SmartImage from '../../components/common/SmartImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +15,9 @@ import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, FontSize, Spacing, Radius } from '../../constants/theme';
 import { userApi } from '../../api';
+import { useNetwork } from '../../hooks/useNetworkState';
+import { useRefresh } from '../../hooks/useRefresh';
+import ErrorState from '../../components/common/ErrorState';
 
 const { width: W } = Dimensions.get('window');
 
@@ -256,16 +260,27 @@ function HistoryRow({
 
 // ── Screen ────────────────────────────────────────────────────
 export default function HistoryScreen({ navigation }: any) {
-  const { data, isLoading, refetch, isRefetching } = useQuery({
+  const { isConnected } = useNetwork();
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['history', { page: 1, limit: 50 }],
     queryFn: () => userApi.getHistory({ page: 1, limit: 50 }),
     staleTime: 2 * 60 * 1000,
   });
+  const { refreshing, onRefresh } = useRefresh(refetch);
 
-  const items: HistoryItem[]     = data?.items ?? [];
+  const items: HistoryItem[]      = data?.items ?? [];
   const inProgress: HistoryItem[] = items.filter(
     (i) => !i.completed && i.progressSeconds > 0,
   );
+
+  if (isError && items.length === 0) {
+    const isNetworkError = !isConnected || (error as any)?.message === 'Network Error';
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <ErrorState type={isNetworkError ? 'network' : 'server'} onRetry={refetch} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -273,8 +288,15 @@ export default function HistoryScreen({ navigation }: any) {
         data={items}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
-        onRefresh={refetch}
-        refreshing={isRefetching}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={T.gold}
+            colors={[T.gold, T.purple]}
+            progressBackgroundColor={T.card}
+          />
+        }
         contentContainerStyle={
           items.length === 0 ? s.emptyContent : s.listContent
         }

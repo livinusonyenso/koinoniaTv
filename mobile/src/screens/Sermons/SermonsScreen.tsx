@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  ActivityIndicator, TouchableOpacity,
+  ActivityIndicator, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,9 @@ import { videosApi, categoriesApi } from '../../api';
 import { SermonCard } from '../../components/common/SermonCard';
 import { CategoryPill } from '../../components/common/CategoryPill';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
+import { useNetwork } from '../../hooks/useNetworkState';
+import { useRefresh } from '../../hooks/useRefresh';
+import ErrorState from '../../components/common/ErrorState';
 
 const SORTS: Array<{ label: string; value: 'latest' | 'trending' | 'az' }> = [
   { label: 'Latest',   value: 'latest'   },
@@ -103,12 +106,17 @@ export default function SermonsScreen({ navigation, route }: any) {
   }, [categories, queryClient]);
 
   // ── Infinite videos query ──
+  const { isConnected } = useNetwork();
+
   const {
     data,
     isLoading,
+    isError,
+    error,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ['videos-infinite', category, sort, year],
     queryFn: ({ pageParam }) =>
@@ -124,6 +132,8 @@ export default function SermonsScreen({ navigation, route }: any) {
       lastPageParam < lastPage.pages ? lastPageParam + 1 : undefined,
     staleTime: 5 * 60 * 1000,
   });
+
+  const { refreshing, onRefresh } = useRefresh(refetch);
 
   const items = useMemo(
     () => data?.pages.flatMap((p: any) => p.items) ?? [],
@@ -160,6 +170,11 @@ export default function SermonsScreen({ navigation, route }: any) {
   );
 
   const keyExtractor = useCallback((item: any) => item.id.toString(), []);
+
+  if (isError && items.length === 0) {
+    const isNetworkError = !isConnected || (error as any)?.message === 'Network Error';
+    return <ErrorState type={isNetworkError ? 'network' : 'server'} onRetry={refetch} />;
+  }
 
   const ListFooter = isFetchingNextPage
     ? <ActivityIndicator color={Colors.gold} style={styles.footerLoader} />
@@ -249,6 +264,15 @@ export default function SermonsScreen({ navigation, route }: any) {
           ListFooterComponent={ListFooter}
           ListEmptyComponent={ListEmpty}
           drawDistance={400}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#F4C430"
+              colors={['#F4C430', '#4B2E83']}
+              progressBackgroundColor="#16112A"
+            />
+          }
         />
       )}
     </View>
