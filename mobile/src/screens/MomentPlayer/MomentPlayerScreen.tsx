@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, Text, ScrollView, FlatList, Image, TouchableOpacity,
+  View, Text, ScrollView, FlatList, TouchableOpacity,
   StyleSheet, Dimensions, Animated, Platform,
 } from 'react-native';
+import SmartImage from '../../components/common/SmartImage';
+import { resolveThumbnail } from '../../utils/thumbnail';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -62,10 +64,10 @@ function SuggestionCard({
       activeOpacity={0.82}
     >
       <View style={styles.sugThumbBox}>
-        <Image
-          source={{ uri: item.thumbnailUrl || `https://img.youtube.com/vi/${item.youtubeId}/mqdefault.jpg` }}
+        <SmartImage
+          uri={resolveThumbnail(item.thumbnailUrl, item.youtubeId)}
           style={styles.sugThumb}
-          resizeMode="cover"
+          lazy
         />
         <View style={[styles.sugTypeBadge, { backgroundColor: color }]}>
           <MaterialCommunityIcons name={TYPE_ICONS[item.type] as any} size={10} color="#fff" />
@@ -209,10 +211,10 @@ export default function MomentPlayerScreen({ route, navigation }: any) {
           {/* Thumbnail (always rendered, hidden behind player once loaded) */}
           {thumbMode ? (
             <TouchableOpacity style={styles.thumbTap} onPress={handleThumbPress} activeOpacity={0.9}>
-              <Image
-                source={{ uri: moment.thumbnailUrl || `https://img.youtube.com/vi/${moment.youtubeId}/mqdefault.jpg` }}
+              <SmartImage
+                uri={resolveThumbnail(moment.thumbnailUrl, moment.youtubeId)}
                 style={styles.thumbBg}
-                resizeMode="cover"
+                lazy={false}
               />
               <View style={styles.thumbOverlay} />
               <View style={styles.thumbPlayBtn}>

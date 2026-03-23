@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import {
-  View, Text, FlatList, ScrollView, StyleSheet,
+  View, Text, ScrollView, StyleSheet,
   ActivityIndicator, TouchableOpacity,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { videosApi, categoriesApi } from '../../api';
@@ -147,11 +148,13 @@ export default function SermonsScreen({ navigation, route }: any) {
 
   const renderItem = useCallback(
     ({ item }: { item: any }) => (
-      <SermonCard
-        video={item}
-        onPress={() => navigation.navigate('VideoPlayer', { videoId: item.id })}
-        style={{ flex: 1 }}
-      />
+      <View style={styles.colItem}>
+        <SermonCard
+          video={item}
+          onPress={() => navigation.navigate('VideoPlayer', { videoId: item.id })}
+          style={{ flex: 1 }}
+        />
+      </View>
     ),
     [navigation],
   );
@@ -232,22 +235,20 @@ export default function SermonsScreen({ navigation, route }: any) {
       {isLoading ? (
         <SkeletonGrid />
       ) : (
-        <FlatList
+        <FlashList
           data={items}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           numColumns={2}
-          columnWrapperStyle={styles.row}
+          estimatedItemSize={220}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
           contentContainerStyle={[styles.grid, items.length === 0 && styles.gridEmpty]}
           showsVerticalScrollIndicator={false}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.5}
           ListFooterComponent={ListFooter}
           ListEmptyComponent={ListEmpty}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews
+          drawDistance={400}
         />
       )}
     </View>
@@ -289,9 +290,9 @@ const styles = StyleSheet.create({
   },
 
   // ── Grid ──
-  grid:      { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: 100 },
+  grid:      { paddingHorizontal: Spacing.sm, paddingTop: Spacing.sm, paddingBottom: 100 },
   gridEmpty: { flex: 1 },
-  row:       { gap: Spacing.sm, marginBottom: Spacing.sm },
+  colItem:   { flex: 1, paddingHorizontal: Spacing.xs },
 
   // ── Footer loader ──
   footerLoader: { paddingVertical: 20 },

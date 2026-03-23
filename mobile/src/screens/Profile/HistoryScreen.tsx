@@ -3,11 +3,11 @@ import {
   View,
   Text,
   FlatList,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import SmartImage from '../../components/common/SmartImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
@@ -121,11 +121,7 @@ function ContinueCard({
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <Image
-        source={{ uri: item.video.thumbnailUrl }}
-        style={s.continueThumb}
-        resizeMode="cover"
-      />
+      <SmartImage uri={item.video.thumbnailUrl} style={s.continueThumb} lazy />
       {/* gradient over thumb */}
       <LinearGradient
         colors={['transparent', 'rgba(13,10,26,0.92)']}
@@ -173,11 +169,7 @@ function HistoryRow({
     <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.8}>
       {/* Thumbnail */}
       <View style={s.thumbWrap}>
-        <Image
-          source={{ uri: v.thumbnailUrl }}
-          style={s.thumb}
-          resizeMode="cover"
-        />
+        <SmartImage uri={v.thumbnailUrl} style={s.thumb} lazy />
 
         {/* Dim overlay when completed */}
         {item.completed && (

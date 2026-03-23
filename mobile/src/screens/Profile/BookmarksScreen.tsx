@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  View, Text, FlatList, Image, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity,
   StyleSheet, ActivityIndicator, Dimensions,
 } from 'react-native';
+import SmartImage from '../../components/common/SmartImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
@@ -66,7 +67,7 @@ function BookmarkCard({
   return (
     <TouchableOpacity style={[styles.card, { width: CARD_W }]} onPress={onPress} activeOpacity={0.82}>
       <View style={styles.thumbWrap}>
-        <Image source={{ uri: v.thumbnailUrl }} style={styles.thumb} resizeMode="cover" />
+        <SmartImage uri={v.thumbnailUrl} style={styles.thumb} lazy />
         {!!v.durationSeconds && (
           <View style={styles.durationBadge}>
             <Text style={styles.durationText}>{formatDuration(v.durationSeconds)}</Text>

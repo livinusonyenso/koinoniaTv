@@ -1,8 +1,7 @@
 import React from 'react';
-import {
-  View, Text, Image, TouchableOpacity, StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Spacing, FontSize, Radius, Shadow } from '../../constants/theme';
+import SmartImage from './SmartImage';
 
 interface Props {
   video: {
@@ -31,10 +30,10 @@ function formatDate(d: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export const SermonCard: React.FC<Props> = ({ video, onPress, style }) => (
+const SermonCardInner: React.FC<Props> = ({ video, onPress, style }) => (
   <TouchableOpacity onPress={onPress} style={[styles.card, style]} activeOpacity={0.82}>
     <View style={styles.thumbContainer}>
-      <Image source={{ uri: video.thumbnailUrl }} style={styles.thumb} resizeMode="cover" />
+      <SmartImage uri={video.thumbnailUrl} style={styles.thumb} lazy />
       {video.durationSeconds > 0 && (
         <View style={styles.durationBadge}>
           <Text style={styles.durationText}>{formatDuration(video.durationSeconds)}</Text>
@@ -47,6 +46,8 @@ export const SermonCard: React.FC<Props> = ({ video, onPress, style }) => (
     </View>
   </TouchableOpacity>
 );
+
+export const SermonCard = React.memo(SermonCardInner);
 
 const styles = StyleSheet.create({
   card: {

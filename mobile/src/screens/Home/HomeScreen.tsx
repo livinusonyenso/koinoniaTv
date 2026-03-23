@@ -1,8 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
-  View, Text, ScrollView, FlatList, Image, TouchableOpacity,
+  View, Text, ScrollView, FlatList, TouchableOpacity,
   StyleSheet, Dimensions, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import SmartImage from '../../components/common/SmartImage';
+import { prefetchThumbnails } from '../../utils/performance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useQuery } from '@tanstack/react-query';
@@ -72,6 +74,19 @@ export default function HomeScreen({ navigation }: any) {
 
   const hero = latest?.[0];
 
+  // Prefetch thumbnails for off-screen sermon cards
+  useEffect(() => {
+    if (latest && latest.length > 1) {
+      prefetchThumbnails(latest.slice(1).map((v: any) => v.thumbnailUrl));
+    }
+  }, [latest]);
+
+  useEffect(() => {
+    if (trending && trending.length > 0) {
+      prefetchThumbnails(trending.map((v: any) => v.thumbnailUrl));
+    }
+  }, [trending]);
+
   const handleQuickAccess = (screen: string) => {
     navigation.navigate(screen);
   };
@@ -121,7 +136,7 @@ export default function HomeScreen({ navigation }: any) {
             activeOpacity={0.92}
             onPress={() => navigation.navigate('VideoPlayer', { videoId: hero.id })}
           >
-            <Image source={{ uri: hero.thumbnailUrl }} style={styles.heroBg} resizeMode="cover" />
+            <SmartImage uri={hero.thumbnailUrl} style={styles.heroBg} lazy={false} />
             <View style={styles.heroTopFade} />
             <View style={styles.heroBottomFade} />
             <View style={styles.heroContent}>
@@ -211,7 +226,7 @@ export default function HomeScreen({ navigation }: any) {
                   activeOpacity={0.85}
                   onPress={() => navigation.navigate('VideoPlayer', { videoId: item.id })}
                 >
-                  <Image source={{ uri: item.thumbnailUrl }} style={styles.sermonThumb} />
+                  <SmartImage uri={item.thumbnailUrl} style={styles.sermonThumb} lazy />
                   {!!item.durationSeconds && (
                     <View style={styles.durationBadge}>
                       <Text style={styles.durationText}>{formatDuration(item.durationSeconds)}</Text>
@@ -304,7 +319,7 @@ export default function HomeScreen({ navigation }: any) {
                   activeOpacity={0.85}
                   onPress={() => navigation.navigate('VideoPlayer', { videoId: item.id })}
                 >
-                  <Image source={{ uri: item.thumbnailUrl }} style={styles.sermonThumb} />
+                  <SmartImage uri={item.thumbnailUrl} style={styles.sermonThumb} lazy />
                   {!!item.durationSeconds && (
                     <View style={styles.durationBadge}>
                       <Text style={styles.durationText}>{formatDuration(item.durationSeconds)}</Text>
