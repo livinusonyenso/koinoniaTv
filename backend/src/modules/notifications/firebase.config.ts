@@ -1,17 +1,9 @@
 import * as admin from 'firebase-admin';
 import * as fs from 'fs';
+import * as path from 'path';
 
 let initialized = false;
 
-/**
- * Initialises Firebase Admin SDK once.
- *
- * Supports two modes via FIREBASE_SERVICE_ACCOUNT env var:
- *   1. File path  — e.g. /home/ontiqaqp/Koinonia-TV/firebase-service-account.json
- *   2. JSON string — e.g. {"type":"service_account","project_id":...}
- *
- * Silently skips if the var is missing so the app boots without Firebase.
- */
 export function initFirebase(): void {
   if (initialized || admin.apps.length > 0) {
     initialized = true;
@@ -28,21 +20,32 @@ export function initFirebase(): void {
   try {
     let serviceAccount: object;
 
-    // Check if it's a file path or a JSON string
-    const isFilePath = raw.trim().startsWith('/') || raw.trim().startsWith('.');
+    // ✅ Fixed: also detect relative paths like "Koinonia-TV/file.json"
+    const trimmed = raw.trim();
+    const isFilePath =
+      trimmed.startsWith('/') ||
+      trimmed.startsWith('.') ||
+      trimmed.endsWith('.json');
 
     if (isFilePath) {
-      // Mode 1 — read from file (used on cPanel/shared hosting)
-      if (!fs.existsSync(raw)) {
-        console.error(`[Firebase] Service account file not found: ${raw}`);
+      // Resolve relative paths from the project root (process.cwd())
+      const resolvedPath = path.isAbsolute(trimmed)
+        ? trimmed
+        : path.resolve(process.cwd(), trimmed);
+
+      console.log(`[Firebase] Resolving service account path: ${resolvedPath}`);
+
+      if (!fs.existsSync(resolvedPath)) {
+        console.error(`[Firebase] Service account file not found: ${resolvedPath}`);
         return;
       }
-      const fileContent = fs.readFileSync(raw, 'utf8');
+
+      const fileContent = fs.readFileSync(resolvedPath, 'utf8');
       serviceAccount = JSON.parse(fileContent);
       console.log('[Firebase] Loaded service account from file');
     } else {
       // Mode 2 — parse as JSON string (used on Railway/Render/local)
-      serviceAccount = JSON.parse(raw);
+      serviceAccount = JSON.parse(trimmed);
       console.log('[Firebase] Loaded service account from env JSON');
     }
 
