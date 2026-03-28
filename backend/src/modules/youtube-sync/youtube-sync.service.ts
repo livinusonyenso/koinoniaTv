@@ -73,29 +73,40 @@ export class YoutubeSyncService {
   }
 
   /** ── Upcoming streams check every hour ─── */
-  @Cron(CronExpression.EVERY_HOUR)
-  async upcomingCheck() {
-    const items = await this.ytApi.fetchUpcomingStreams();
-    for (const item of items) {
+@Cron(CronExpression.EVERY_HOUR)
+async upcomingCheck() {
+  const items = await this.ytApi.fetchUpcomingStreams();
+  for (const item of items) {
+    try {
       const scheduledStart = item.liveStreamingDetails?.scheduledStartTime
         ? new Date(item.liveStreamingDetails.scheduledStartTime)
         : null;
 
-      await this.videoRepo.upsert(
-        {
-          youtubeId: item.id,
-          title: item.snippet.title,
-          description: item.snippet.description,
-          thumbnailUrl: this.ytApi.bestThumbnail(item.snippet.thumbnails),
-          publishedAt: new Date(item.snippet.publishedAt),
-          isUpcoming: true,
-          scheduledStart: scheduledStart ?? undefined,
-          syncStatus: SyncStatus.SYNCED,
-        },
-        ['youtubeId'],
-      );
+      const existing = await this.videoRepo.findOne({
+        where: { youtubeId: item.id },
+      });
+
+      const data: Partial<Video> = {
+        youtubeId: item.id,
+        title: item.snippet.title,
+        description: item.snippet.description,
+        thumbnailUrl: this.ytApi.bestThumbnail(item.snippet.thumbnails),
+        publishedAt: new Date(item.snippet.publishedAt),
+        isUpcoming: true,
+        scheduledStart: scheduledStart ?? undefined,
+        syncStatus: SyncStatus.SYNCED,
+      };
+
+      if (existing) {
+        await this.videoRepo.update(existing.id, data);
+      } else {
+        await this.videoRepo.save(this.videoRepo.create(data));
+      }
+    } catch (err) {
+      this.logger.error(`upcomingCheck error for ${item.id}: ${err.message}`);
     }
   }
+}
 
   /** ── Manual trigger (admin endpoint) ─── */
   async triggerManualSync(type: 'full' | 'incremental' = 'incremental') {

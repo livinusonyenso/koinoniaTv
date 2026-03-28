@@ -217,10 +217,31 @@ export class EnsureSchemaIntegrity1711400000000 implements MigrationInterface {
     ],
 
     moments: [
+      // Core columns first — indexes depend on youtube_id existing
       {
-        col: 'transcript_text',
-        definition: 'TEXT NULL',
-        reason: 'Source transcript excerpt used for detection',
+        col: 'youtube_id',
+        definition: "VARCHAR(20) NOT NULL DEFAULT ''",
+        reason: 'YouTube video ID — required for moment lookup and indexing',
+      },
+      {
+        col: 'video_id',
+        definition: 'INT NULL',
+        reason: 'FK to videos table (nullable for orphaned moments)',
+      },
+      {
+        col: 'start_time',
+        definition: 'INT NOT NULL DEFAULT 0',
+        reason: 'Moment start offset in seconds',
+      },
+      {
+        col: 'end_time',
+        definition: 'INT NOT NULL DEFAULT 0',
+        reason: 'Moment end offset in seconds',
+      },
+      {
+        col: 'thumbnail_url',
+        definition: 'VARCHAR(500) NULL',
+        reason: 'Thumbnail inherited from parent video',
       },
       {
         col: 'sermon_title',
@@ -228,9 +249,9 @@ export class EnsureSchemaIntegrity1711400000000 implements MigrationInterface {
         reason: 'Parent sermon title for display',
       },
       {
-        col: 'thumbnail_url',
-        definition: 'VARCHAR(500) NULL',
-        reason: 'Thumbnail inherited from parent video',
+        col: 'transcript_text',
+        definition: 'TEXT NULL',
+        reason: 'Source transcript excerpt used for detection',
       },
     ],
 

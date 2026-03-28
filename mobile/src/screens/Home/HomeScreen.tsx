@@ -169,6 +169,7 @@ export default function HomeScreen({ navigation }: any) {
     queryKey: ['latest'],
     queryFn: () => videosApi.getLatest(10),
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   const { data: trending, isLoading: loadingTrending, refetch: refetchTrending } = useQuery({
@@ -216,21 +217,20 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, [trending]);
 
-  // [C1] Error guard AFTER all hooks
-  if (latestError && !latest) {
-    const isNetworkError =
-      !isConnected || (latestErr as any)?.message === 'Network Error';
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.dark }} edges={['top']}>
-        <ErrorState
-          type={isNetworkError ? 'network' : 'server'}
-          onRetry={refetchLatest}
-        />
-      </SafeAreaView>
-    );
-  }
+  // Derive a non-blocking inline error banner instead of replacing the whole screen
+  const hasLatestError = latestError && !latest;
+  const isNetworkError = !isConnected || (latestErr as any)?.message === 'Network Error';
 
   const hero = latest?.[0];
+
+  // ─── Debug logs ───────────────────────────────────────────────────────────
+  console.log('[HomeScreen] isConnected:', isConnected);
+  console.log('[HomeScreen] latest:', { loading: loadingLatest, error: latestError, count: latest?.length, hero: hero?.id });
+  console.log('[HomeScreen] trending:', { loading: loadingTrending, count: trending?.length });
+  console.log('[HomeScreen] categories:', { loading: loadingCategories, count: categories?.length });
+  console.log('[HomeScreen] upcomingEvents:', { count: upcomingEvents?.length });
+  console.log('[HomeScreen] hasLatestError:', hasLatestError, '| isNetworkError:', isNetworkError);
+  if (latestErr) console.log('[HomeScreen] latestErr:', (latestErr as any)?.message, (latestErr as any)?.response?.status, (latestErr as any)?.response?.data);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -279,6 +279,26 @@ export default function HomeScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* ── Inline error banner (non-blocking) ── */}
+        {hasLatestError && (
+          <TouchableOpacity
+            style={styles.errorBanner}
+            onPress={() => refetchLatest()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Content failed to load. Tap to retry."
+          >
+            <MaterialCommunityIcons
+              name={isNetworkError ? 'wifi-off' : 'server-off'}
+              size={15}
+              color="#EF4444"
+            />
+            <Text style={styles.errorBannerText}>
+              {isNetworkError ? 'No connection' : 'Could not load content'} — tap to retry
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Hero Banner ── */}
         {loadingLatest ? (
@@ -400,6 +420,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* ── Latest Messages ── */}
+        {(loadingLatest || (latest?.length ?? 0) > 1) && (
         <View style={styles.section}>
           {/* [H4] sectionRow now owns the single paddingHorizontal */}
           <View style={styles.sectionRow}>
@@ -460,8 +481,10 @@ export default function HomeScreen({ navigation }: any) {
             />
           ) : null}
         </View>
+        )}
 
         {/* ── Browse by Topic ── */}
+        {(loadingCategories || (categories?.length ?? 0) > 0) && (
         <View style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>Browse by Topic</Text>
@@ -516,6 +539,7 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           ) : null}
         </View>
+        )}
 
         {/* ── Upcoming Programs ── */}
         {(upcomingEvents?.length ?? 0) > 0 && (
@@ -571,6 +595,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* ── Trending This Week ── */}
+        {(loadingTrending || (trending?.length ?? 0) > 0) && (
         <View style={[styles.section, styles.sectionLast]}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>Trending This Week</Text>
@@ -634,6 +659,7 @@ export default function HomeScreen({ navigation }: any) {
             />
           ) : null}
         </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1043,5 +1069,23 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: Colors.surfaceAlt,
     borderRadius: 4,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.sm,
+    backgroundColor: '#3A1515',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EF444444',
+  },
+  errorBannerText: {
+    color: '#EF4444',
+    fontSize: 12,
+    flex: 1,
   },
 });
