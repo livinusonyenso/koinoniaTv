@@ -4,8 +4,6 @@ export class AddVideoIndexes1711100000000 implements MigrationInterface {
   name = 'AddVideoIndexes1711100000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Drop indexes first if they already exist, then recreate cleanly
-
     // Index for GET /videos/latest (ORDER BY published_at DESC)
     await queryRunner.query(
       `DROP INDEX IF EXISTS \`idx_videos_published_at\` ON \`videos\``,
@@ -22,12 +20,12 @@ export class AddVideoIndexes1711100000000 implements MigrationInterface {
       `CREATE INDEX \`idx_videos_view_count\` ON \`videos\` (\`view_count\` DESC)`,
     );
 
-    // Composite unique on video_categories join table
+    // ✅ Fixed: use camelCase column names to match actual table schema
     await queryRunner.query(
       `DROP INDEX IF EXISTS \`idx_video_categories_composite\` ON \`video_categories\``,
     );
     await queryRunner.query(
-      `CREATE UNIQUE INDEX \`idx_video_categories_composite\` ON \`video_categories\` (\`video_id\`, \`category_id\`)`,
+      `CREATE UNIQUE INDEX \`idx_video_categories_composite\` ON \`video_categories\` (\`videoId\`, \`categoryId\`)`,
     );
   }
 

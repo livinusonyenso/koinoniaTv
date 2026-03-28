@@ -6,8 +6,15 @@ import compression = require('compression');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', { exclude: ['/'] });
   app.use(compression());
+  // Root health/info route — before global prefix kicks in
+  app.use('/', (req: any, res: any, next: any) => {
+    if (req.method === 'GET' && req.path === '/') {
+      return res.json({ status: 'running', service: 'Koinonia TV API', version: 'v1', environment: process.env.NODE_ENV || 'production' });
+    }
+    next();
+  });
   app.enableCors({ origin: '*', credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   const port = process.env.APP_PORT || 3000;
