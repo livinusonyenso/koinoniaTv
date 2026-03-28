@@ -129,11 +129,15 @@ function CategorySkeleton() {
   }, [opacity]);
 
   return (
-    <Animated.View style={[styles.catGrid, { opacity }]}>
-      {[1, 2, 3, 4].map((i) => (
-        <View key={i} style={[styles.catCard, { borderLeftColor: Colors.border }]}>
-          <View style={[styles.skeletonLine, { width: '70%', height: 13 }]} />
-          <View style={[styles.skeletonLine, { width: '40%', marginTop: 6, height: 10 }]} />
+    <Animated.View style={{ flexDirection: 'row', paddingHorizontal: Spacing.md, gap: Spacing.sm, opacity }}>
+      {[1, 2, 3].map((i) => (
+        <View key={i} style={{ width: 130, height: 120, backgroundColor: Colors.card, borderRadius: Radius.lg, overflow: 'hidden' }}>
+          <View style={{ height: 3, backgroundColor: Colors.border }} />
+          <View style={{ padding: Spacing.sm, gap: 8 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.border }} />
+            <View style={[styles.skeletonLine, { width: '80%', height: 13 }]} />
+            <View style={[styles.skeletonLine, { width: '55%', height: 10 }]} />
+          </View>
         </View>
       ))}
     </Animated.View>
@@ -501,42 +505,44 @@ export default function HomeScreen({ navigation }: any) {
           {loadingCategories ? (
             <CategorySkeleton />
           ) : (categories?.length ?? 0) > 0 ? (
-            <View style={styles.catGrid}>
-              {categories!.slice(0, 6).map((cat: any) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[styles.catCard, { borderLeftColor: cat.colorHex || Colors.gold }]}
-                  onPress={() => navigation.navigate('Sermons', { category: cat.slug })}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Browse ${cat.name}, ${cat.videoCount ?? 0} messages`}
-                >
-                  <View style={styles.catCardInner}>
-                    <View style={styles.catLeft}>
-                      <View
-                        style={[
-                          styles.catDot,
-                          { backgroundColor: cat.colorHex || Colors.gold },
-                        ]}
-                      />
-                      <Text style={styles.catName}>{cat.name}</Text>
+            <FlatList
+              data={categories!.slice(0, 8)}
+              keyExtractor={(item: any) => item.id.toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: Spacing.md, gap: Spacing.sm }}
+              renderItem={({ item: cat }: { item: any }) => {
+                const accent = cat.colorHex || Colors.gold;
+                const initial = (cat.name as string).charAt(0).toUpperCase();
+                return (
+                  <TouchableOpacity
+                    style={[styles.catCard, { backgroundColor: accent + '18', borderColor: accent + '40' }]}
+                    onPress={() => navigation.navigate('Sermons', { category: cat.slug })}
+                    activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Browse ${cat.name}, ${cat.videoCount ?? 0} messages`}
+                  >
+                    {/* Large initial as decorative background letter */}
+                    <Text style={[styles.catInitialBg, { color: accent + '28' }]}>{initial}</Text>
+                    {/* Accent bar top */}
+                    <View style={[styles.catAccentBar, { backgroundColor: accent }]} />
+                    <View style={styles.catCardBody}>
+                      {/* Icon circle */}
+                      <View style={[styles.catIconCircle, { backgroundColor: accent + '25' }]}>
+                        <Text style={[styles.catInitial, { color: accent }]}>{initial}</Text>
+                      </View>
+                      <Text style={styles.catName} numberOfLines={2}>{cat.name}</Text>
+                      <View style={styles.catCountRow}>
+                        <MaterialCommunityIcons name="play-circle-outline" size={12} color={accent} />
+                        <Text style={[styles.catCount, { color: accent }]}>
+                          {cat.videoCount ?? 0} messages
+                        </Text>
+                      </View>
                     </View>
-                    <View
-                      style={[
-                        styles.catCountBadge,
-                        { backgroundColor: (cat.colorHex || Colors.gold) + '22' },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.catCount, { color: cat.colorHex || Colors.gold }]}
-                      >
-                        {cat.videoCount ?? 0}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
           ) : null}
         </View>
         )}
@@ -969,26 +975,52 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   catCard: {
-    width: '47%',
-    backgroundColor: Colors.card,
-    borderRadius: Radius.md,
-    padding: Spacing.sm,
-    borderLeftWidth: 3,
+    width: 130,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
     ...Shadow.card,
   },
-  catCardInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  catAccentBar: {
+    height: 3,
+    width: '100%',
   },
-  catLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  catDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  catCardBody: {
+    padding: Spacing.sm,
+    gap: 8,
+  },
+  catIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catInitial: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  catInitialBg: {
+    position: 'absolute',
+    right: -8,
+    top: -4,
+    fontSize: 72,
+    fontWeight: '900',
+    lineHeight: 80,
+  },
   catName: {
     color: Colors.text,
     fontSize: FontSize.sm,
     fontWeight: '700',
-    flexShrink: 1,
+    lineHeight: 18,
   },
+  catCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  catCount: { fontSize: 10, fontWeight: '600' },
   catCountBadge: {
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -996,7 +1028,6 @@ const styles = StyleSheet.create({
     minWidth: 28,
     alignItems: 'center',
   },
-  catCount: { fontSize: 10, fontWeight: '800' },
 
   // ── Events ──
   eventCard: {
