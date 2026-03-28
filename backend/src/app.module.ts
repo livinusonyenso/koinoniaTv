@@ -43,6 +43,7 @@ import { TranscriptService } from './modules/youtube-sync/transcript.service';
 import { MomentsDetectionService } from './modules/moments/moments-detection.service';
 import { MomentsService } from './modules/moments/moments.service';
 import { MomentsController } from './modules/moments/moments.controller';
+import { DatabaseBootstrapService } from './database/database-bootstrap.service';
 
 import { AuthController } from './modules/auth/auth.controller';
 import { VideosController } from './modules/videos/videos.controller';
@@ -124,6 +125,7 @@ const ENTITIES = [
     YoutubeSyncService, YoutubeApiService, CategorizationService,
     TranscriptService, MomentsDetectionService, MomentsService,
     // NotificationService is provided by NotificationModule (imported above)
+    DatabaseBootstrapService,
   ],
 })
 export class AppModule {}
