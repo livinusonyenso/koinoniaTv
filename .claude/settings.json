@@ -28,7 +28,8 @@
       "Bash(curl -sv --max-time 10 \"$BASE/api/v1/videos/latest?limit=1\")",
       "Bash(BASE=\"https://koinonia-tv.ontimemaritime.com/api/v1\" echo \"=== Full latest video object ===\" curl -s \"$BASE/videos/latest?limit=1\")",
       "Bash(python3 -c \":*)",
-      "Bash(curl -s \"https://koinonia-tv.ontimemaritime.com/api/v1/clips?limit=5\")"
+      "Bash(curl -s \"https://koinonia-tv.ontimemaritime.com/api/v1/clips?limit=5\")",
+      "Bash(npx prettier:*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\DELL\\.claude\\projects\\c--Users-DELL-Desktop-koinonia-tv-source-koinonia-tv"

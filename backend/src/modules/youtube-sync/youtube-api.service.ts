@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 
 export interface YTVideoItem {
   id: string;
@@ -8,13 +8,26 @@ export interface YTVideoItem {
     title: string;
     description: string;
     publishedAt: string;
-    thumbnails: { maxres?: { url: string }; high?: { url: string }; default?: { url: string } };
+    thumbnails: {
+      maxres?: { url: string };
+      high?: { url: string };
+      default?: { url: string };
+    };
     liveBroadcastContent: 'live' | 'upcoming' | 'none';
-    scheduledStartTime?: string;
   };
   contentDetails?: { duration: string };
   statistics?: { viewCount: string; likeCount: string };
-  liveStreamingDetails?: { scheduledStartTime?: string; actualStartTime?: string };
+  liveStreamingDetails?: {
+    scheduledStartTime?: string;
+    actualStartTime?: string;
+  };
+}
+
+export class YouTubeQuotaError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'YouTubeQuotaError';
+  }
 }
 
 @Injectable()
@@ -25,31 +38,76 @@ export class YoutubeApiService {
   private readonly channelId: string;
 
   constructor(private config: ConfigService) {
-    this.apiKey    = config.get<string>('YOUTUBE_API_KEY')!;
+    this.apiKey = config.get<string>('YOUTUBE_API_KEY')!;
     this.channelId = config.get<string>('YOUTUBE_CHANNEL_ID')!;
-    this.http = axios.create({ baseURL: 'https://www.googleapis.com/youtube/v3' });
+    this.http = axios.create({
+      baseURL: 'https://www.googleapis.com/youtube/v3',
+      timeout: 30_000,
+    });
   }
 
-  /** Parse ISO 8601 duration (PT1H23M45S) to seconds */
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
   parseDuration(iso: string): number {
     if (!iso) return 0;
     const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
     if (!m) return 0;
-    return (+(m[1] || 0)) * 3600 + (+(m[2] || 0)) * 60 + +(m[3] || 0);
+    return +(m[1] || 0) * 3600 + +(m[2] || 0) * 60 + +(m[3] || 0);
   }
 
   bestThumbnail(thumbnails: YTVideoItem['snippet']['thumbnails']): string {
     return (
       thumbnails?.maxres?.url ||
-      thumbnails?.high?.url   ||
+      thumbnails?.high?.url ||
       thumbnails?.default?.url ||
       ''
     );
   }
 
-  /** Fetch latest videos via search (incremental sync) */
-  async fetchLatestVideos(maxResults = 10): Promise<YTVideoItem[]> {
+  private handleError(context: string, err: unknown): never {
+    const axiosErr = err as AxiosError;
+    const status = axiosErr?.response?.status;
+    if (status === 403) {
+      this.logger.warn(
+        `[${context}] YouTube API quota exceeded (403) — DB will serve stale data`,
+      );
+      throw new YouTubeQuotaError(`Quota exceeded during ${context}`);
+    }
+    if (status === 400) {
+      this.logger.error(
+        `[${context}] Bad request: ${JSON.stringify(axiosErr.response?.data)}`,
+      );
+    } else {
+      this.logger.error(`[${context}] ${axiosErr.message}`);
+    }
+    throw err;
+  }
+
+  // ─── Core: fetch full video details by IDs ──────────────────────────────────
+  // Cost: 1 quota unit per request (up to 50 IDs per call)
+
+  async fetchVideoDetails(ids: string): Promise<YTVideoItem[]> {
     try {
+      const res = await this.http.get('/videos', {
+        params: {
+          key: this.apiKey,
+          id: ids,
+          part: 'snippet,contentDetails,statistics,liveStreamingDetails',
+        },
+      });
+      return res.data.items || [];
+    } catch (err) {
+      return this.handleError('fetchVideoDetails', err);
+    }
+  }
+
+  // ─── Incremental: only fetch videos newer than a given date ─────────────────
+  // Cost: 100 units (search) + 1 unit per 50 IDs (videos.list)
+  // Uses publishedAfter to avoid re-fetching existing videos.
+
+  async fetchVideosSince(since: Date, maxResults = 50): Promise<YTVideoItem[]> {
+    try {
+      const publishedAfter = since.toISOString();
       const search = await this.http.get('/search', {
         params: {
           key: this.apiKey,
@@ -57,33 +115,126 @@ export class YoutubeApiService {
           part: 'id',
           order: 'date',
           type: 'video',
+          publishedAfter,
           maxResults,
         },
       });
-      const ids = search.data.items.map((i: any) => i.id.videoId).join(',');
+      const ids = (search.data.items || [])
+        .map((i: any) => i.id.videoId)
+        .join(',');
       if (!ids) return [];
       return this.fetchVideoDetails(ids);
     } catch (err) {
-      this.logger.error('fetchLatestVideos error', err.message);
+      if (err instanceof YouTubeQuotaError) throw err;
+      return this.handleError('fetchVideosSince', err);
+    }
+  }
+
+  // ─── Stats-only refresh: update viewCount/likeCount for existing videos ─────
+  // Cost: 1 unit per request (videos.list, no search needed)
+  // Used to keep trending data accurate without fetching everything.
+
+  async fetchVideoStats(youtubeIds: string[]): Promise<YTVideoItem[]> {
+    if (!youtubeIds.length) return [];
+    const results: YTVideoItem[] = [];
+    try {
+      for (let i = 0; i < youtubeIds.length; i += 50) {
+        const batch = youtubeIds.slice(i, i + 50).join(',');
+        const res = await this.http.get('/videos', {
+          params: { key: this.apiKey, id: batch, part: 'statistics' },
+        });
+        results.push(...(res.data.items || []));
+      }
+    } catch (err) {
+      if (err instanceof YouTubeQuotaError) throw err;
+      return this.handleError('fetchVideoStats', err);
+    }
+    return results;
+  }
+
+  // ─── Live check (CHEAP): uses videos.list not search ────────────────────────
+  // Cost: 1 unit per request.
+  // Pass recently known video IDs from DB — check if any are now live.
+  // Only falls back to the expensive search when nothing is found here.
+
+  async checkLiveCheap(recentYoutubeIds: string[]): Promise<YTVideoItem[]> {
+    if (!recentYoutubeIds.length) return [];
+    try {
+      const ids = recentYoutubeIds.slice(0, 50).join(',');
+      const res = await this.http.get('/videos', {
+        params: { key: this.apiKey, id: ids, part: 'snippet' },
+      });
+      return (res.data.items || []).filter(
+        (v: YTVideoItem) => v.snippet.liveBroadcastContent === 'live',
+      );
+    } catch (err) {
+      if (err instanceof YouTubeQuotaError) throw err;
+      this.logger.error(`checkLiveCheap error: ${(err as Error).message}`);
       return [];
     }
   }
 
-  /** Fetch full video details by comma-separated IDs */
-  async fetchVideoDetails(ids: string): Promise<YTVideoItem[]> {
-    const res = await this.http.get('/videos', {
-      params: {
-        key: this.apiKey,
-        id: ids,
-        part: 'snippet,contentDetails,statistics,liveStreamingDetails',
-      },
-    });
-    return res.data.items || [];
+  // ─── Live check (FULL SEARCH): finds brand-new live streams not yet in DB ───
+  // Cost: 100 units (search.list with eventType=live).
+  // Call this less frequently — once per hour is sufficient.
+
+  async checkLiveSearch(): Promise<YTVideoItem[]> {
+    try {
+      const res = await this.http.get('/search', {
+        params: {
+          key: this.apiKey,
+          channelId: this.channelId,
+          part: 'id',
+          eventType: 'live',
+          type: 'video',
+          maxResults: 5,
+        },
+      });
+      const ids = (res.data.items || [])
+        .map((i: any) => i.id.videoId)
+        .join(',');
+      if (!ids) return [];
+      return this.fetchVideoDetails(ids);
+    } catch (err) {
+      if (err instanceof YouTubeQuotaError) throw err;
+      this.logger.error(`checkLiveSearch error: ${(err as Error).message}`);
+      return [];
+    }
   }
 
-  /** Fetch ALL channel videos page by page (full sync) */
+  // ─── Upcoming streams ────────────────────────────────────────────────────────
+  // Cost: 100 units (search) + 1 unit per 50 IDs
+
+  async fetchUpcomingStreams(): Promise<YTVideoItem[]> {
+    try {
+      const res = await this.http.get('/search', {
+        params: {
+          key: this.apiKey,
+          channelId: this.channelId,
+          part: 'id',
+          eventType: 'upcoming',
+          type: 'video',
+          maxResults: 10,
+        },
+      });
+      const ids = (res.data.items || [])
+        .map((i: any) => i.id.videoId)
+        .join(',');
+      if (!ids) return [];
+      return this.fetchVideoDetails(ids);
+    } catch (err) {
+      if (err instanceof YouTubeQuotaError) throw err;
+      this.logger.error(
+        `fetchUpcomingStreams error: ${(err as Error).message}`,
+      );
+      return [];
+    }
+  }
+
+  // ─── Full channel sync (all videos, paginated) ───────────────────────────────
+  // Cost: 1 unit (channels.list) + N × 1 unit (playlistItems pages) + M × 1 unit (videos.list batches)
+
   async fetchAllChannelVideos(): Promise<YTVideoItem[]> {
-    // Step 1: get uploads playlist ID
     const channelRes = await this.http.get('/channels', {
       params: { key: this.apiKey, id: this.channelId, part: 'contentDetails' },
     });
@@ -104,12 +255,12 @@ export class YoutubeApiService {
           pageToken,
         },
       });
-      const ids = (res.data.items || []).map((i: any) => i.contentDetails.videoId);
-      allIds.push(...ids);
+      allIds.push(
+        ...(res.data.items || []).map((i: any) => i.contentDetails.videoId),
+      );
       pageToken = res.data.nextPageToken;
     } while (pageToken);
 
-    // Fetch details in batches of 50
     const details: YTVideoItem[] = [];
     for (let i = 0; i < allIds.length; i += 50) {
       const batch = allIds.slice(i, i + 50).join(',');
@@ -119,47 +270,11 @@ export class YoutubeApiService {
     return details;
   }
 
-  /** Check if channel is currently live */
-  async checkLiveStatus(): Promise<YTVideoItem[]> {
-    try {
-      const res = await this.http.get('/search', {
-        params: {
-          key: this.apiKey,
-          channelId: this.channelId,
-          part: 'id',
-          eventType: 'live',
-          type: 'video',
-          maxResults: 5,
-        },
-      });
-      const ids = (res.data.items || []).map((i: any) => i.id.videoId).join(',');
-      if (!ids) return [];
-      return this.fetchVideoDetails(ids);
-    } catch (err) {
-      this.logger.error('checkLiveStatus error', err.message);
-      return [];
-    }
-  }
-
-  /** Fetch upcoming scheduled streams */
-  async fetchUpcomingStreams(): Promise<YTVideoItem[]> {
-    try {
-      const res = await this.http.get('/search', {
-        params: {
-          key: this.apiKey,
-          channelId: this.channelId,
-          part: 'id',
-          eventType: 'upcoming',
-          type: 'video',
-          maxResults: 10,
-        },
-      });
-      const ids = (res.data.items || []).map((i: any) => i.id.videoId).join(',');
-      if (!ids) return [];
-      return this.fetchVideoDetails(ids);
-    } catch (err) {
-      this.logger.error('fetchUpcomingStreams error', err.message);
-      return [];
-    }
+  // ─── Legacy alias kept for manual trigger ────────────────────────────────────
+  async fetchLatestVideos(maxResults = 10): Promise<YTVideoItem[]> {
+    return this.fetchVideosSince(
+      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      maxResults,
+    );
   }
 }

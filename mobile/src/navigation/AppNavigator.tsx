@@ -158,6 +158,11 @@ function AuthInnerStack() {
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
+  // On Android the bottom inset covers gesture nav bar or button nav bar.
+  // We must expand the tab bar height to include it — padding alone doesn't
+  // work when a fixed height is set because padding gets consumed inside it.
+  const bottomInset = insets.bottom > 0 ? insets.bottom : 8;
+  const tabBarHeight = 62 + bottomInset;
 
   return (
     <Tab.Navigator
@@ -165,7 +170,10 @@ function MainTabs() {
         headerShown: false,
         tabBarStyle: [
           styles.tabBar,
-          { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 },
+          {
+            height: tabBarHeight,
+            paddingBottom: bottomInset,
+          },
         ],
         tabBarShowLabel: true,
         tabBarLabel: TAB_LABELS[route.name] ?? route.name,
@@ -275,7 +283,6 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
     borderTopWidth: 1,
     paddingTop: 6,
-    height: 62,
   },
   tabLabel:         { fontSize: 10, fontWeight: '600', marginTop: 2 },
   tabIconContainer: { alignItems: 'center', justifyContent: 'center', height: 28 },
