@@ -1,7 +1,7 @@
 import { Injectable, Logger, Optional, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Video, SyncStatus } from '../videos/video.entity';
@@ -26,8 +26,8 @@ export class YoutubeSyncService {
     @Optional() @Inject(CACHE_MANAGER) private cache?: Cache,
   ) {}
 
-  /** ── Incremental sync every 30 minutes ─── */
-  @Cron('0 */30 * * * *')
+  /** ── Incremental sync once daily at 6am ─── */
+  @Cron('0 0 6 * * *')
   async incrementalSync() {
     this.logger.log('▶ Incremental sync started');
     await this.runSync(SyncType.INCREMENTAL, () => this.ytApi.fetchLatestVideos(10));
@@ -40,73 +40,58 @@ export class YoutubeSyncService {
     await this.runSync(SyncType.FULL, () => this.ytApi.fetchAllChannelVideos());
   }
 
-  /** ── Live status check every 5 minutes ─── */
-  @Cron('0 */5 * * * *')
+  /** ── Live status check once daily at 8am ─── */
+  @Cron('0 0 8 * * *')
   async liveCheck() {
-    const liveVideos = await this.ytApi.checkLiveStatus();
-    const isNowLive = liveVideos.length > 0;
+    try {
+      const liveVideos = await this.ytApi.checkLiveStatus();
+      const isNowLive = liveVideos.length > 0;
 
-    // Reset all currently-live videos first
-    await this.videoRepo.update({ isLive: true }, { isLive: false });
+      // Reset all currently-live videos first
+      await this.videoRepo.update({ isLive: true }, { isLive: false });
 
-    for (const item of liveVideos) {
-      await this.videoRepo.update(
-        { youtubeId: item.id },
-        { isLive: true, isUpcoming: false },
-      );
+      for (const item of liveVideos) {
+        await this.videoRepo.update(
+          { youtubeId: item.id },
+          { isLive: true, isUpcoming: false },
+        );
+      }
+
+      if (isNowLive) {
+        this.logger.log(`Live check: ${liveVideos.length} active stream(s)`);
+      }
+
+      // Fire once when the stream transitions from offline → live
+      if (isNowLive && !this.wasLive && this.notif) {
+        this.notif.sendToAll(
+          '🔴 Koinonia is LIVE',
+          'The Miracle Service has started. Join now!',
+          { type: 'live_stream' },
+        ).catch(err => this.logger.error(`Live notification failed: ${err.message}`));
+      }
+
+      this.wasLive = isNowLive;
+    } catch (err) {
+      this.logger.error(`liveCheck failed: ${err.message}`);
     }
-
-    if (isNowLive) {
-      this.logger.log(`Live check: ${liveVideos.length} active stream(s)`);
-    }
-
-    // Fire once when the stream transitions from offline → live
-    if (isNowLive && !this.wasLive && this.notif) {
-      this.notif.sendToAll(
-        '🔴 Koinonia is LIVE',
-        'The Miracle Service has started. Join now!',
-        { type: 'live_stream' },
-      ).catch(err => this.logger.error(`Live notification failed: ${err.message}`));
-    }
-
-    this.wasLive = isNowLive;
   }
 
-  /** ── Upcoming streams check every hour ─── */
-@Cron(CronExpression.EVERY_HOUR)
-async upcomingCheck() {
-  const items = await this.ytApi.fetchUpcomingStreams();
-  for (const item of items) {
+  /** ── Upcoming streams check once daily at 7am ─── */
+  @Cron('0 0 7 * * *')
+  async upcomingCheck() {
     try {
-      const scheduledStart = item.liveStreamingDetails?.scheduledStartTime
-        ? new Date(item.liveStreamingDetails.scheduledStartTime)
-        : null;
-
-      const existing = await this.videoRepo.findOne({
-        where: { youtubeId: item.id },
-      });
-
-      const data: Partial<Video> = {
-        youtubeId: item.id,
-        title: item.snippet.title,
-        description: item.snippet.description,
-        thumbnailUrl: this.ytApi.bestThumbnail(item.snippet.thumbnails),
-        publishedAt: new Date(item.snippet.publishedAt),
-        isUpcoming: true,
-        scheduledStart: scheduledStart ?? undefined,
-        syncStatus: SyncStatus.SYNCED,
-      };
-
-      if (existing) {
-        await this.videoRepo.update(existing.id, data);
-      } else {
-        await this.videoRepo.save(this.videoRepo.create(data));
+      const items = await this.ytApi.fetchUpcomingStreams();
+      for (const item of items) {
+        try {
+          await this.upsertVideo(item, { isUpcoming: true });
+        } catch (err) {
+          this.logger.error(`upcomingCheck error for ${item.id}: ${err.message}`);
+        }
       }
     } catch (err) {
-      this.logger.error(`upcomingCheck error for ${item.id}: ${err.message}`);
+      this.logger.error(`upcomingCheck failed: ${err.message}`);
     }
   }
-}
 
   /** ── Manual trigger (admin endpoint) ─── */
   async triggerManualSync(type: 'full' | 'incremental' = 'incremental') {
@@ -114,6 +99,51 @@ async upcomingCheck() {
       return this.runSync(SyncType.FULL, () => this.ytApi.fetchAllChannelVideos());
     }
     return this.runSync(SyncType.INCREMENTAL, () => this.ytApi.fetchLatestVideos(20));
+  }
+
+  /** ── Safe upsert by youtubeId — avoids duplicate key race condition ─── */
+  private async upsertVideo(item: YTVideoItem, overrides: Partial<Video> = {}): Promise<{ video: Video; isNew: boolean }> {
+    const existing = await this.videoRepo.findOne({ where: { youtubeId: item.id } });
+
+    const data: Partial<Video> = {
+      youtubeId: item.id,
+      title: item.snippet.title,
+      description: item.snippet.description,
+      thumbnailUrl: this.ytApi.bestThumbnail(item.snippet.thumbnails),
+      publishedAt: new Date(item.snippet.publishedAt),
+      durationSeconds: item.contentDetails
+        ? this.ytApi.parseDuration(item.contentDetails.duration)
+        : 0,
+      viewCount: +(item.statistics?.viewCount || 0),
+      likeCount: +(item.statistics?.likeCount || 0),
+      isLive: item.snippet.liveBroadcastContent === 'live',
+      isUpcoming: item.snippet.liveBroadcastContent === 'upcoming',
+      scheduledStart: item.liveStreamingDetails?.scheduledStartTime
+        ? new Date(item.liveStreamingDetails.scheduledStartTime)
+        : undefined,
+      syncStatus: SyncStatus.SYNCED,
+      ...overrides,
+    };
+
+    if (existing) {
+      await this.videoRepo.update(existing.id, data);
+      return { video: { ...existing, ...data } as Video, isNew: false };
+    }
+
+    try {
+      const saved = await this.videoRepo.save(this.videoRepo.create(data));
+      return { video: saved, isNew: true };
+    } catch (err) {
+      // Duplicate key — another concurrent process inserted it first; treat as update
+      if (err.code === 'ER_DUP_ENTRY' || err.message?.includes('Duplicate entry')) {
+        const found = await this.videoRepo.findOne({ where: { youtubeId: item.id } });
+        if (found) {
+          await this.videoRepo.update(found.id, data);
+          return { video: { ...found, ...data } as Video, isNew: false };
+        }
+      }
+      throw err;
+    }
   }
 
   /** ── Core sync runner ─── */
@@ -130,50 +160,23 @@ async upcomingCheck() {
 
       for (const item of items) {
         try {
-          const existing = await this.videoRepo.findOne({
-            where: { youtubeId: item.id },
-          });
+          const { video, isNew } = await this.upsertVideo(item);
 
-          const data: Partial<Video> = {
-            youtubeId: item.id,
-            title: item.snippet.title,
-            description: item.snippet.description,
-            thumbnailUrl: this.ytApi.bestThumbnail(item.snippet.thumbnails),
-            publishedAt: new Date(item.snippet.publishedAt),
-            durationSeconds: item.contentDetails
-              ? this.ytApi.parseDuration(item.contentDetails.duration)
-              : 0,
-            viewCount: +(item.statistics?.viewCount || 0),
-            likeCount: +(item.statistics?.likeCount || 0),
-            isLive: item.snippet.liveBroadcastContent === 'live',
-            isUpcoming: item.snippet.liveBroadcastContent === 'upcoming',
-            scheduledStart: item.liveStreamingDetails?.scheduledStartTime
-              ? new Date(item.liveStreamingDetails.scheduledStartTime)
-              : undefined,
-            syncStatus: SyncStatus.SYNCED,
-          };
-
-          if (existing) {
-            await this.videoRepo.update(existing.id, data);
-            // Re-tag if this video has never been categorized
-            const catCount = await this.vcRepo.count({ where: { videoId: existing.id } });
-            if (catCount === 0) {
-              const videoForTag = { ...existing, ...data } as Video;
-              await this.categorization.autoTag(videoForTag);
-            }
-            updated++;
-          } else {
-            const saved = await this.videoRepo.save(this.videoRepo.create(data));
-            await this.categorization.autoTag(saved);
+          if (isNew) {
+            await this.categorization.autoTag(video);
             added++;
-            // Fire-and-forget: notify users of genuinely new videos only
             if (this.notif) {
               this.notif.sendToAll(
                 '🎙️ New Sermon Available',
-                saved.title,
-                { type: 'new_video', videoId: String(saved.id) },
+                video.title,
+                { type: 'new_video', videoId: String(video.id) },
               ).catch(err => this.logger.error(`New video notification failed: ${err.message}`));
             }
+          } else {
+            // Re-tag if this video has never been categorized
+            const catCount = await this.vcRepo.count({ where: { videoId: video.id } });
+            if (catCount === 0) await this.categorization.autoTag(video);
+            updated++;
           }
         } catch (err) {
           this.logger.error(`Error processing video ${item.id}: ${err.message}`);
@@ -191,12 +194,11 @@ async upcomingCheck() {
     log.completedAt   = new Date();
     await this.logRepo.save(log);
 
-    // Bust video caches whenever new content was added or stats updated
     if ((added > 0 || updated > 0) && this.cache) {
       try {
         await this.cache.del('videos:latest');
         await this.cache.del('videos:trending');
-        this.logger.debug('Cache invalidated after sync: videos:latest, videos:trending');
+        this.logger.debug('Cache invalidated after sync');
       } catch { /* cache failure must never affect sync */ }
     }
 
