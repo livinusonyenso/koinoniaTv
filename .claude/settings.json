@@ -29,7 +29,16 @@
       "Bash(BASE=\"https://koinonia-tv.ontimemaritime.com/api/v1\" echo \"=== Full latest video object ===\" curl -s \"$BASE/videos/latest?limit=1\")",
       "Bash(python3 -c \":*)",
       "Bash(curl -s \"https://koinonia-tv.ontimemaritime.com/api/v1/clips?limit=5\")",
-      "Bash(npx prettier:*)"
+      "Bash(npx prettier:*)",
+      "Bash(curl -s https://koinonia-tv.ontimemaritime.com/)",
+      "Bash(curl -s \"https://koinonia-tv.ontimemaritime.com/api/v1/videos/latest?limit=3\")",
+      "Bash(curl -s \"https://koinonia-tv.ontimemaritime.com/api/v1/videos/trending?limit=3\")",
+      "Bash(curl -s \"https://koinonia-tv.ontimemaritime.com/api/v1/live/status\")",
+      "Bash(curl -s \"https://koinonia-tv.ontimemaritime.com/api/v1/search?q=miracle\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''latest: {len\\(d\\)} items, first: {d[0][\"\"title\"\"][:50] if d else \"\"empty\"\"}''''\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''trending: {len\\(d\\)} items''''\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''categories: {len\\(d\\)} items, names: {[c[\"\"name\"\"] for c in d]}''''\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''events/upcoming: {len\\(d\\)} items''''\\)\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\DELL\\.claude\\projects\\c--Users-DELL-Desktop-koinonia-tv-source-koinonia-tv"

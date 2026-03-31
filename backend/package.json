@@ -23,7 +23,8 @@
     "migration:show": "npx typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
     "migration:generate": "npx typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "seed": "npx ts-node -r tsconfig-paths/register src/database/seeds/seed-all.ts",
-    "db:setup": "npm run migration:run && npm run seed"
+    "db:setup": "npm run migration:run && npm run seed",
+    "deploy": "bash deploy.sh"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.1.0",
