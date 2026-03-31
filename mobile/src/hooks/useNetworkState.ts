@@ -54,6 +54,7 @@ function parseNetInfo(state: NetInfoState): NetworkState {
 // Everywhere else, call useNetwork() to read from context.
 
 export function useNetworkState(): NetworkState {
+  // Default to connected — never show the banner before we have real data
   const [state, setState] = useState<NetworkState>({
     isConnected: true,
     isInternetReachable: true,
@@ -61,23 +62,42 @@ export function useNetworkState(): NetworkState {
     isSlowConnection: false,
   });
 
-  // Keep a mutable ref so callbacks fired during mount don't race
-  const latestState = useRef(state);
-  latestState.current = state;
+  // Debounce timer for the offline state only.
+  // Online state is applied immediately; offline requires 2 s of sustained disconnect
+  // to avoid false positives from Android NetInfo init (which fires null → false → true).
+  const offlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Fetch current state immediately
-    NetInfo.fetch().then((s) => {
+    const handle = (s: NetInfoState) => {
       const parsed = parseNetInfo(s);
-      setState(parsed);
-    });
 
-    // Subscribe to future changes
-    const unsubscribe = NetInfo.addEventListener((s) => {
-      setState(parseNetInfo(s));
-    });
+      if (parsed.isConnected) {
+        // Connected — cancel any pending offline timer, apply immediately
+        if (offlineTimer.current) {
+          clearTimeout(offlineTimer.current);
+          offlineTimer.current = null;
+        }
+        setState(parsed);
+      } else {
+        // Disconnected — only apply after 2 s of sustained disconnect
+        if (offlineTimer.current) return; // timer already running
+        offlineTimer.current = setTimeout(() => {
+          offlineTimer.current = null;
+          setState(parsed);
+        }, 2000);
+      }
+    };
 
-    return unsubscribe;
+    // Immediate fetch for the current state
+    NetInfo.fetch().then(handle);
+
+    // Subscribe to all future changes
+    const unsubscribe = NetInfo.addEventListener(handle);
+
+    return () => {
+      unsubscribe();
+      if (offlineTimer.current) clearTimeout(offlineTimer.current);
+    };
   }, []);
 
   return state;

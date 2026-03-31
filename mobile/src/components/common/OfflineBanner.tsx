@@ -17,22 +17,29 @@ interface Props {
  * Auto-dismisses 3 seconds after the connection is restored.
  */
 export default function OfflineBanner({ isConnected }: Props) {
-  const insets   = useSafeAreaInsets();
-  const slideY   = useRef(new Animated.Value(-BANNER_H)).current;
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const insets      = useSafeAreaInsets();
+  const slideY      = useRef(new Animated.Value(-BANNER_H)).current;
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Don't show on the very first render — only react to transitions
+  const mountedRef  = useRef(false);
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
+    // Skip the initial mount — banner should be hidden until a real disconnect
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+
     if (!isConnected) {
-      // Slide down into view
       Animated.timing(slideY, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }).start();
     } else {
-      // Wait 3 s then slide back up
+      // Wait 3 s after reconnect then slide back up
       timerRef.current = setTimeout(() => {
         Animated.timing(slideY, {
           toValue: -BANNER_H,

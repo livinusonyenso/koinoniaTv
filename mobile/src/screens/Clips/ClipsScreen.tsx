@@ -4,6 +4,7 @@ import {
   Share, ActivityIndicator, Image, RefreshControl,
 } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { clipsApi } from '../../api';
 import { Colors, Spacing, FontSize, Radius } from '../../constants/theme';
@@ -15,6 +16,7 @@ const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 
 function ClipItem({ item, isActive, navigation }: any) {
   const [playing, setPlaying] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     setPlaying(isActive);
@@ -25,6 +27,10 @@ function ClipItem({ item, isActive, navigation }: any) {
     const url = `https://www.youtube.com/watch?v=${item.video?.youtubeId}&t=${item.startSeconds}s`;
     await Share.share({ title: item.title, message: `"${item.title}" — Koinonia TV\n${url}`, url });
   };
+
+  // Tab bar height (~62) + nav bar inset so buttons are never hidden
+  const actionBottom = 62 + insets.bottom + 16;
+  const infoBottom   = 62 + insets.bottom + 8;
 
   return (
     <View style={styles.clipItem}>
@@ -46,7 +52,7 @@ function ClipItem({ item, isActive, navigation }: any) {
 
       <View style={styles.overlay} />
 
-      <View style={styles.rightActions}>
+      <View style={[styles.rightActions, { bottom: actionBottom }]}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => setPlaying(!playing)}>
           <Text style={styles.actionIcon}>{playing ? '⏸' : '▶'}</Text>
         </TouchableOpacity>
@@ -60,7 +66,7 @@ function ClipItem({ item, isActive, navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.bottomInfo}>
+      <View style={[styles.bottomInfo, { bottom: infoBottom }]}>
         <View style={styles.typeBadge}>
           <Text style={styles.typeBadgeText}>{item.clipType?.toUpperCase()}</Text>
         </View>
@@ -151,15 +157,15 @@ const styles = StyleSheet.create({
   clipItem:  { width: SCREEN_W, height: SCREEN_H, backgroundColor: '#000' },
   overlay:   { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)' },
   rightActions: {
-    position: 'absolute', right: Spacing.md, bottom: 120,
+    position: 'absolute', right: Spacing.md,
     alignItems: 'center', gap: Spacing.lg,
   },
   actionBtn:  { alignItems: 'center' },
   actionIcon: { color: Colors.text, fontSize: 28 },
   actionSub:  { color: Colors.text, fontSize: FontSize.xs, marginTop: 2 },
   bottomInfo: {
-    position: 'absolute', bottom: 0, left: 0, right: 80,
-    padding: Spacing.md, paddingBottom: 40,
+    position: 'absolute', left: 0, right: 80,
+    padding: Spacing.md,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   typeBadge: {
