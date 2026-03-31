@@ -11,17 +11,23 @@ const WEB_CLIENT_ID     = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID     || ''
 
 const googleConfigured = !!(ANDROID_CLIENT_ID || IOS_CLIENT_ID || WEB_CLIENT_ID);
 
+// expo-auth-session throws an invariant if ALL client IDs are undefined on a
+// given platform. We must always pass at least a non-empty placeholder so the
+// hook initialises safely. When googleConfigured=false the button stays
+// disabled (ready=false) and signInWithGoogle is a no-op.
+const SAFE_ANDROID = ANDROID_CLIENT_ID || 'not-configured';
+const SAFE_IOS     = IOS_CLIENT_ID     || undefined;
+const SAFE_WEB     = WEB_CLIENT_ID     || undefined;
+
 export function useGoogleAuth() {
   const { loginWithGoogle } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
-  // Always pass a config object — never null — to avoid Hermes parse issues.
-  // When credentials are empty the hook keeps request=null and ready stays false.
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: ANDROID_CLIENT_ID || undefined,
-    iosClientId:     IOS_CLIENT_ID     || undefined,
-    webClientId:     WEB_CLIENT_ID     || undefined,
+    androidClientId: SAFE_ANDROID,
+    iosClientId:     SAFE_IOS,
+    webClientId:     SAFE_WEB,
   });
 
   useEffect(() => {

@@ -8,19 +8,28 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://koinonia-tv.ontimemaritime.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://koinonia-tv.ontimemaritime.com/api/v1",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "876225989921-07qh84slld36m68epder7krlpjam33im.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": ""
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://koinonia-tv.ontimemaritime.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://koinonia-tv.ontimemaritime.com/api/v1",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "876225989921-07qh84slld36m68epder7krlpjam33im.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": ""
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://koinonia-tv.ontimemaritime.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://koinonia-tv.ontimemaritime.com/api/v1",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "876225989921-07qh84slld36m68epder7krlpjam33im.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": ""
       }
     }
   },
