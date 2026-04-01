@@ -6,8 +6,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { NetworkContext, useNetworkState } from './src/hooks/useNetworkState';
+import { AudioPlayerContext, useAudioPlayerState } from './src/hooks/useAudioPlayer';
 import OfflineBanner from './src/components/common/OfflineBanner';
 import SlowConnectionBanner from './src/components/common/SlowConnectionBanner';
+import AudioPlayerBar from './src/components/common/AudioPlayerBar';
 
 // ── QueryClient — 24h gcTime, smart retry, offline-friendly ───────────────────
 export const queryClient = new QueryClient({
@@ -43,18 +45,23 @@ export const queryClient = new QueryClient({
 // ── Inner component reads from NetInfo and feeds context + banners ─────────────
 function AppInner() {
   const network = useNetworkState();
+  const audioPlayer = useAudioPlayerState();
 
   return (
     <NetworkContext.Provider value={network}>
-      <View style={{ flex: 1 }}>
-        <AppNavigator />
-        {/* Banners overlay the nav — never push content down */}
-        <OfflineBanner isConnected={network.isConnected} />
-        <SlowConnectionBanner
-          isSlowConnection={network.isSlowConnection}
-          isConnected={network.isConnected}
-        />
-      </View>
+      <AudioPlayerContext.Provider value={audioPlayer}>
+        <View style={{ flex: 1 }}>
+          <AppNavigator />
+          {/* Audio mini-player sits above the tab bar */}
+          <AudioPlayerBar />
+          {/* Banners overlay the nav — never push content down */}
+          <OfflineBanner isConnected={network.isConnected} />
+          <SlowConnectionBanner
+            isSlowConnection={network.isSlowConnection}
+            isConnected={network.isConnected}
+          />
+        </View>
+      </AudioPlayerContext.Provider>
     </NetworkContext.Provider>
   );
 }

@@ -252,6 +252,22 @@ export class VideosService {
     });
   }
 
+  // ─── Audio URL management ─────────────────────────────────────────────────────
+
+  async setAudioUrl(id: number, audioUrl: string): Promise<Video> {
+    const video = await this.repo.findOneBy({ id });
+    if (!video) throw new NotFoundException('Video not found');
+    video.audioUrl = audioUrl;
+    return this.repo.save(video);
+  }
+
+  async removeAudioUrl(id: number): Promise<void> {
+    const video = await this.repo.findOneBy({ id });
+    if (!video) throw new NotFoundException('Video not found');
+    video.audioUrl = null;
+    await this.repo.save(video);
+  }
+
   // ─── Cache invalidation (called by YoutubeSyncService after sync) ─────────────
 
   async invalidateVideoCache(): Promise<void> {

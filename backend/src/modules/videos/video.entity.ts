@@ -61,6 +61,9 @@ export class Video {
   @Column({ name: 'is_featured', default: false })
   isFeatured: boolean;
 
+  @Column({ name: 'audio_url', length: 1000, nullable: true })
+  audioUrl: string | null;
+
   @OneToMany(() => VideoCategory, (vc) => vc.video, { cascade: true })
   videoCategories: VideoCategory[];
 

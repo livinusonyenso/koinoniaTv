@@ -11,11 +11,13 @@ import { SermonCard } from '../../components/common/SermonCard';
 import { Colors, Spacing, FontSize, Radius } from '../../constants/theme';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import { useAuthStore } from '../../store/authStore';
+import { useAudioPlayer } from '../../hooks/useAudioPlayer';
 
 export default function VideoPlayerScreen({ route, navigation }: any) {
   const { videoId } = route.params;
   const { requireAuth } = useRequireAuth();
   const { authState } = useAuthStore();
+  const audioPlayer = useAudioPlayer();
   const queryClient = useQueryClient();
   const [playing, setPlaying] = useState(true);
   const [showFull, setShowFull] = useState(false);
@@ -108,6 +110,17 @@ export default function VideoPlayerScreen({ route, navigation }: any) {
   }, [saveProgress]);
 
   // ── Share ─────────────────────────────────────────────────────
+  // ── Listen (background audio) ─────────────────────────────────────
+  const handleListen = () => {
+    if (!video?.audioUrl) return;
+    audioPlayer.play({
+      videoId: video.id,
+      title: video.title,
+      thumbnailUrl: video.thumbnailUrl,
+      audioUrl: video.audioUrl,
+    });
+  };
+
   const handleShare = async () => {
     if (!video) return;
     await Share.share({
@@ -154,6 +167,13 @@ export default function VideoPlayerScreen({ route, navigation }: any) {
             <MaterialCommunityIcons name="share-variant-outline" size={22} color={Colors.gold} />
             <Text style={styles.actionLabel}>Share</Text>
           </TouchableOpacity>
+
+          {video.audioUrl && (
+            <TouchableOpacity style={styles.actionBtn} onPress={handleListen}>
+              <MaterialCommunityIcons name="headphones" size={22} color={Colors.gold} />
+              <Text style={styles.actionLabel}>Listen</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={[styles.actionBtn, bookmarked && styles.actionBtnActive]}

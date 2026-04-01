@@ -1,8 +1,16 @@
-import { Controller, Post, Get, Body, Query } from '@nestjs/common';
+import {
+  Controller, Post, Get, Delete, Body, Query, Param,
+  ParseIntPipe, UseInterceptors, UploadedFile, BadRequestException,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import { unlinkSync, existsSync, mkdirSync } from 'fs';
 import { YoutubeSyncService } from './youtube-sync.service';
 import { CategorizationService } from './categorization.service';
 import { MomentsDetectionService } from '../moments/moments-detection.service';
+import { VideosService } from '../videos/videos.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SyncLog } from './sync-log.entity';
@@ -13,6 +21,7 @@ export class AdminController {
     private sync: YoutubeSyncService,
     private categorization: CategorizationService,
     private momentsDetection: MomentsDetectionService,
+    private videos: VideosService,
     @InjectRepository(SyncLog) private logRepo: Repository<SyncLog>,
   ) {}
 
@@ -52,5 +61,69 @@ export class AdminController {
       console.log(`[MomentsDetection] done: ${JSON.stringify(r)}`),
     );
     return { message: `Processing up to ${n} videos in background.` };
+  }
+
+  // ─── Audio upload ─────────────────────────────────────────────────────────────
+
+  /**
+   * POST /admin/videos/:id/audio
+   * Upload an MP3 file for a video (multipart/form-data, field name = "audio").
+   * Returns the updated video with its new audioUrl.
+   */
+  @Post('videos/:id/audio')
+  @UseInterceptors(
+    FileInterceptor('audio', {
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'audio');
+          mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (req, file, cb) => {
+          const id = req.params.id;
+          const ext = extname(file.originalname).toLowerCase() || '.mp3';
+          cb(null, `video-${id}-${Date.now()}${ext}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        const allowed = ['.mp3', '.m4a', '.aac', '.wav', '.ogg'];
+        const ext = extname(file.originalname).toLowerCase();
+        if (allowed.includes(ext) || file.mimetype.startsWith('audio/')) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Only audio files are allowed'), false);
+        }
+      },
+      limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB
+    }),
+  )
+  async uploadAudio(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No audio file provided');
+
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const audioUrl = `${appUrl}/uploads/audio/${file.filename}`;
+    return this.videos.setAudioUrl(id, audioUrl);
+  }
+
+  /**
+   * DELETE /admin/videos/:id/audio
+   * Remove the audio file reference (and the physical file) from a video.
+   */
+  @Delete('videos/:id/audio')
+  async removeAudio(@Param('id', ParseIntPipe) id: number) {
+    const video = await this.videos.findOne(id);
+    if (video.audioUrl) {
+      // Remove physical file if it lives in our uploads folder
+      const filename = video.audioUrl.split('/uploads/audio/').pop();
+      if (filename) {
+        const filePath = join(process.cwd(), 'uploads', 'audio', filename);
+        if (existsSync(filePath)) unlinkSync(filePath);
+      }
+    }
+    await this.videos.removeAudioUrl(id);
+    return { message: 'Audio removed' };
   }
 }

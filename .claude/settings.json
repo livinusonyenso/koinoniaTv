@@ -38,7 +38,9 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''latest: {len\\(d\\)} items, first: {d[0][\"\"title\"\"][:50] if d else \"\"empty\"\"}''''\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''trending: {len\\(d\\)} items''''\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''categories: {len\\(d\\)} items, names: {[c[\"\"name\"\"] for c in d]}''''\\)\")",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''events/upcoming: {len\\(d\\)} items''''\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f''''events/upcoming: {len\\(d\\)} items''''\\)\")",
+      "Bash(find /c/Users/DELL/Desktop/koinonia-tv-source/koinonia-tv/backend/src -name *upload* -o -name *storage* -o -name *file*)",
+      "Bash(grep -r \"S3\\\\|aws-sdk\\\\|@aws-sdk\\\\|bucket\\\\|s3\\\\|upload\\\\|storage\" /c/Users/DELL/Desktop/koinonia-tv-source/koinonia-tv/backend/src --include=*.ts)"
     ],
     "additionalDirectories": [
       "c:\\Users\\DELL\\.claude\\projects\\c--Users-DELL-Desktop-koinonia-tv-source-koinonia-tv"

@@ -227,15 +227,6 @@ export default function HomeScreen({ navigation }: any) {
 
   const hero = latest?.[0];
 
-  // ─── Debug logs ───────────────────────────────────────────────────────────
-  console.log('[HomeScreen] isConnected:', isConnected);
-  console.log('[HomeScreen] latest:', { loading: loadingLatest, error: latestError, count: latest?.length, hero: hero?.id });
-  console.log('[HomeScreen] trending:', { loading: loadingTrending, count: trending?.length });
-  console.log('[HomeScreen] categories:', { loading: loadingCategories, count: categories?.length });
-  console.log('[HomeScreen] upcomingEvents:', { count: upcomingEvents?.length });
-  console.log('[HomeScreen] hasLatestError:', hasLatestError, '| isNetworkError:', isNetworkError);
-  if (latestErr) console.log('[HomeScreen] latestErr:', (latestErr as any)?.message, (latestErr as any)?.response?.status, (latestErr as any)?.response?.data);
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (

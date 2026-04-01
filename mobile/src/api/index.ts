@@ -9,24 +9,18 @@ export const storage = {
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
-console.log('[API] BASE_URL:', BASE_URL);
-
 export const api = axios.create({ baseURL: BASE_URL, timeout: 15000 });
 
 // Attach JWT to every request
 api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
-  console.log('[API] -->', config.method?.toUpperCase(), config.url);
   return config;
 });
 
 // Auto-refresh on 401
 api.interceptors.response.use(
-  (res) => {
-    console.log('[API] <--', res.status, res.config.url, Array.isArray(res.data) ? `[${res.data.length} items]` : typeof res.data);
-    return res;
-  },
+  (res) => res,
   async (error) => {
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
@@ -43,7 +37,6 @@ api.interceptors.response.use(
         await SecureStore.deleteItemAsync('refresh_token');
       }
     }
-    console.log('[API] ERR', error.config?.url, error.response?.status, error.message);
     return Promise.reject(error);
   },
 );

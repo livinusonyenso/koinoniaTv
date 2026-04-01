@@ -25,4 +25,7 @@ export const configValidationSchema = Joi.object({
   FIREBASE_CLIENT_EMAIL: Joi.string().allow('').optional(),
 
   OPENAI_API_KEY: Joi.string().allow('').optional(),
+
+  APP_URL: Joi.string().allow('').optional(),
+  AUDIO_STORAGE_PATH: Joi.string().default('./uploads/audio'),
 });
