@@ -77,7 +77,16 @@ export default function LiveScreen() {
           <View style={styles.liveBadge}><Text style={styles.liveBadgeText}>● LIVE</Text></View>
           <Text style={styles.liveTitle} numberOfLines={2}>{status.stream.title}</Text>
         </View>
-        <YoutubePlayer height={220} videoId={status.stream.youtubeId} play={true} />
+        <YoutubePlayer
+          height={220}
+          videoId={status.stream.youtubeId}
+          play={true}
+          webViewProps={{
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            androidLayerType: 'hardware',
+            mediaPlaybackRequiresUserAction: false,
+          }}
+        />
         <View style={styles.liveInfo}>
           <Text style={styles.liveDesc}>Apostle Joshua Selman is live now. Tap fullscreen for the best experience.</Text>
           <TouchableOpacity style={styles.refreshBtn} onPress={() => refetch()}>

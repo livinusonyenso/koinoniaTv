@@ -41,6 +41,11 @@ function ClipItem({ item, isActive, navigation }: any) {
           videoId={item.video.youtubeId}
           play={playing}
           initialPlayerParams={{ start: item.startSeconds, end: item.endSeconds, controls: false }}
+          webViewProps={{
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            androidLayerType: 'hardware',
+            mediaPlaybackRequiresUserAction: false,
+          }}
         />
       ) : (
         <Image
