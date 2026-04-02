@@ -200,3 +200,6 @@ node dist/main.js
 ---
 
 *"Intimacy · Partnership · Fellowship" — Koinonia Global*
+
+
+<!-- eas build --platform android --profile preview -->
